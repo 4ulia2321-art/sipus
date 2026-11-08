@@ -1,0 +1,415 @@
+/* ===== Halaman Laporan (admin) ===== */
+
+/* Ringkasan statistik */
+.r-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.r-stat {
+    padding: 18px;
+}
+
+.r-stat-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.r-stat-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    background: var(--brand-light);
+    color: var(--brand-dark);
+    font-size: 20px;
+}
+
+.r-stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.r-stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1.2;
+}
+
+.r-stat-sub {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+/* Grafik */
+.charts {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.chart-card {
+    padding: 18px;
+}
+
+.chart-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.chart-head h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.select-sm {
+    padding: 6px 10px;
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--ink);
+    background: #fff;
+    cursor: pointer;
+}
+
+.chart-box {
+    position: relative;
+    height: 260px;
+}
+
+/* Donut + legend */
+.donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.donut-box {
+    position: relative;
+    width: 190px;
+    height: 190px;
+    flex-shrink: 0;
+}
+
+.donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    pointer-events: none;
+}
+
+.donut-center strong {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+}
+
+.d-total {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.d-total-m {
+    display: none;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.legend li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+}
+
+.legend .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.lg-name {
+    flex: 1;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lg-pct {
+    font-weight: 700;
+    color: var(--muted);
+}
+
+/* Tabel laporan */
+.report-card {
+    padding: 18px;
+}
+
+.tabs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.tab {
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--brand-light);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: 0.15s;
+}
+
+.tab:hover {
+    color: var(--brand-dark);
+}
+
+.tab.active {
+    background: var(--brand);
+    color: #fff;
+}
+
+.btn-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.report-table th,
+.report-table td {
+    padding: 12px 10px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line, #eef2f7);
+}
+
+.report-table th {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+/* Badge status */
+.badge-pill {
+    display: inline-flex;
+    align-items: center;
+    align-self: auto;
+    margin-top: 0;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.badge-pill.badge-success {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.badge-pill.badge-info {
+    background: var(--brand-light);
+    color: var(--brand-dark);
+}
+
+.badge-pill.badge-warning {
+    background: #fff7ed;
+    color: #d97706;
+}
+
+.badge-pill.badge-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.badge-pill.badge-secondary {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* Responsif */
+@media (max-width: 992px) {
+    .r-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .r-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .hide-m {
+        display: none;
+    }
+
+    .range-field {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .donut-wrap {
+        flex-direction: column;
+    }
+
+    .d-total {
+        display: none;
+    }
+
+    .d-total-m {
+        display: block;
+    }
+
+    .btn-print {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Ringkasan tab transaksi */
+.trx-summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding-bottom: 16px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.trx-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.trx-icon {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 12px;
+    font-size: 19px;
+}
+
+.trx-icon.blue {
+    background: var(--brand-light);
+    color: var(--brand-dark);
+}
+
+.trx-icon.orange {
+    background: #ffedd5;
+    color: #ea580c;
+}
+
+.trx-icon.red {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.trx-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.trx-item strong {
+    font-size: 17px;
+}
+
+@media (max-width: 640px) {
+    .trx-summary {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ringkasan denda (halaman Statistik) */
+.denda-mini {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.denda-mini-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.denda-mini-item span {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.denda-mini-item i {
+    color: var(--brand-dark);
+    font-size: 15px;
+}
+
+.denda-mini-item strong {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--ink);
+    white-space: nowrap;
+}

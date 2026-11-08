@@ -1,0 +1,248 @@
+/* ===== Halaman Data Anggota (admin) ===== */
+
+/* --- Statistik --- */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.stats .stat-card {
+    display: block;
+    padding: 18px;
+}
+
+.stat-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.stat-label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.stat-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--ink);
+    margin-top: 2px;
+}
+
+.stat-sub {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+}
+
+@media (max-width: 992px) {
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .stats {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* --- Filter --- */
+.filters-anggota {
+    align-items: center;
+}
+
+.filters-anggota .field-search {
+    flex: 1;
+}
+
+.btn-reset {
+    white-space: nowrap;
+    align-self: stretch;
+}
+
+/* --- Avatar --- */
+.avatar-md {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+}
+
+.person .avatar-md {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+}
+
+/* --- Tag kategori --- */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 11px;
+    border-radius: 8px;
+    background: var(--brand-light);
+    color: var(--brand-dark);
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+/* --- Badge status --- */
+.badge-active,
+.badge-inactive {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    align-self: flex-start;
+    margin-top: 0;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.badge-active {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.badge-inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.badge .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.badge-sm {
+    font-size: 11px;
+    padding: 4px 10px;
+}
+
+/* --- Tombol aksi (ikon) --- */
+.icon-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.icon-actions form {
+    display: inline-flex;
+}
+
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: #fff;
+    color: var(--muted);
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-icon:hover {
+    color: var(--brand);
+    border-color: var(--brand);
+}
+
+.btn-icon-danger:hover {
+    color: #b91c1c;
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+
+/* --- Kartu anggota (mobile) --- */
+.member-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+}
+
+.member-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.member-chevron {
+    color: #c3cede;
+    font-size: 18px;
+}
+
+.member-actions {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.mobile-pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+}
+
+/* ===== Penyesuaian desain baru (kartu ringkasan & tabel) ===== */
+.stats {
+    margin-bottom: 18px;
+}
+
+.stats .stat-card h4 {
+    margin: 0 0 2px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.stat-delta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.stat-delta i {
+    color: var(--green);
+}
+
+.stat-delta b {
+    color: var(--ink);
+}
+
+.actions.center {
+    justify-content: center;
+}
+
+.t-center {
+    text-align: center;
+}
+
+.bk-table .avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+}
+
+img.avatar {
+    object-fit: cover;
+}

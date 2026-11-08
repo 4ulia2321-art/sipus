@@ -1,0 +1,254 @@
+/* ===== Halaman Riwayat Peminjaman (siswa) ===== */
+
+/* Filter */
+.history-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.history-search {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    display: flex;
+    align-items: center;
+}
+
+.history-search i {
+    position: absolute;
+    left: 13px;
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+.history-search input {
+    width: 100%;
+    padding: 10px 14px 10px 38px;
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--ink);
+    background: #fff;
+    outline: none;
+}
+
+.history-search input:focus {
+    border-color: var(--brand);
+}
+
+.history-filter select {
+    padding: 10px 12px;
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--ink);
+    background: #fff;
+    cursor: pointer;
+}
+
+.btn-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-detail-outline {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border: 1px solid var(--brand);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand);
+    background: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: 0.15s;
+}
+
+.btn-detail-outline:hover {
+    background: var(--brand);
+    color: #fff;
+}
+
+/* Tabel (desktop) */
+.history-table-wrap {
+    background: #fff;
+    border: 1px solid var(--line, #eef2f7);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15, 43, 76, 0.04);
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+    padding: 13px 14px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line, #eef2f7);
+    vertical-align: middle;
+}
+
+.history-table thead th {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+    font-weight: 700;
+    background: #f8fafc;
+}
+
+.history-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.history-book {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 220px;
+}
+
+.history-thumb {
+    width: 42px;
+    height: 54px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: var(--brand-light);
+    color: var(--brand-dark);
+    font-size: 18px;
+    overflow: hidden;
+}
+
+.history-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.history-book strong {
+    display: block;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.history-book small {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.history-pagination {
+    padding: 14px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Kartu (mobile) */
+.history-cards {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.history-card {
+    background: #fff;
+    border: 1px solid var(--line, #eef2f7);
+    border-radius: 14px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(15, 43, 76, 0.04);
+}
+
+.history-card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.history-card-top strong {
+    display: block;
+    font-weight: 700;
+    color: var(--ink);
+}
+
+.history-card-top small {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.history-dates {
+    margin: 0 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.history-dates > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12.5px;
+}
+
+.history-dates dt {
+    margin: 0;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.history-dates dd {
+    margin: 0;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.history-card-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line, #eef2f7);
+}
+
+@media (max-width: 768px) {
+    .history-table-wrap {
+        display: none;
+    }
+
+    .history-cards {
+        display: flex;
+    }
+
+    .history-search {
+        min-width: 100%;
+    }
+
+    .history-filter select {
+        flex: 1;
+    }
+}
