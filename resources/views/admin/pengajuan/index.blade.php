@@ -29,35 +29,45 @@
         <div class="alert alert-error">{{ session('error') }}</div>
     @endif
 
-    {{-- Daftar buku tersedia untuk diajukan (khusus siswa) --}}
+    {{-- Daftar buku tersedia untuk diajukan (khusus siswa), dipisah per kategori --}}
     @unless ($isAdmin)
-        <section class="panel">
-            <div class="panel-head">
-                <h3><i class="bi bi-book"></i> Buku Tersedia untuk Dipinjam</h3>
-            </div>
-            <div class="catalog-grid">
-                @forelse ($bukuList as $buku)
-                    <div class="book-card">
-                        <div class="book-cover cover-sm">
-                            @if ($buku->cover)
-                                <img src="{{ asset('storage/' . $buku->cover) }}" alt="{{ $buku->judul }}">
-                            @else
-                                <i class="bi bi-image"></i>
-                            @endif
+        @forelse ($bukuList as $kategori => $daftarBuku)
+            <section class="panel">
+                <div class="panel-head">
+                    <h3>
+                        <i class="bi {{ $kategori === 'Cerita' ? 'bi-book-half' : 'bi-journal-bookmark' }}"></i>
+                        Buku {{ $kategori }}
+                    </h3>
+                </div>
+                <div class="catalog-grid">
+                    @foreach ($daftarBuku as $buku)
+                        <div class="book-card">
+                            <div class="book-cover cover-sm">
+                                @if ($buku->cover)
+                                    <img src="{{ asset('storage/' . $buku->cover) }}" alt="{{ $buku->judul }}">
+                                @else
+                                    <i class="bi bi-image"></i>
+                                @endif
+                            </div>
+                            <div class="book-body">
+                                <h4>{{ $buku->judul }}</h4>
+                                <small>{{ $buku->pengarang }}</small>
+                            </div>
+                            <a href="{{ route('pengajuan.create', $buku->id) }}" class="btn-detail btn-ajukan">
+                                <i class="bi bi-plus-circle"></i> Ajukan Peminjaman
+                            </a>
                         </div>
-                        <div class="book-body">
-                            <h4>{{ $buku->judul }}</h4>
-                            <small>{{ $buku->pengarang }}</small>
-                        </div>
-                        <a href="{{ route('pengajuan.create', $buku->id) }}" class="btn-detail btn-ajukan">
-                            <i class="bi bi-plus-circle"></i> Ajukan Peminjaman
-                        </a>
-                    </div>
-                @empty
-                    <p class="empty">Belum ada buku tersedia untuk dipinjam.</p>
-                @endforelse
-            </div>
-        </section>
+                    @endforeach
+                </div>
+            </section>
+        @empty
+            <section class="panel">
+                <div class="panel-head">
+                    <h3><i class="bi bi-book"></i> Buku Tersedia untuk Dipinjam</h3>
+                </div>
+                <p class="empty">Belum ada buku tersedia untuk dipinjam.</p>
+            </section>
+        @endforelse
     @endunless
 
     {{-- Daftar pengajuan --}}

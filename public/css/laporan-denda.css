@@ -1,0 +1,105 @@
+/* ===== Laporan Denda (Pustakawan) ===== */
+
+.denda-report-table {
+    min-width: 960px;
+    font-size: 13px;
+}
+
+.denda-report-table thead th,
+.denda-report-table tbody td {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.denda-report-table thead th {
+    white-space: nowrap;
+}
+
+.denda-report-table tbody td {
+    vertical-align: middle;
+}
+
+.denda-report-table .judul {
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.denda-report-table .muted {
+    margin-top: 2px;
+    font-size: 11.5px;
+}
+
+.denda-nom {
+    font-weight: 800;
+    color: var(--ink);
+    white-space: nowrap;
+}
+
+.hari-denda {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.hari-denda.late {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.denda-report-table tfoot td {
+    padding: 12px 10px;
+    border-top: 2px solid var(--border);
+    background: #f8fbfe;
+    font-size: 13px;
+}
+
+.denda-report-table tfoot .tfoot-label {
+    text-align: right;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-size: 11.5px;
+}
+
+.btn-lunas {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 11px;
+    border: 1px solid #a7f3d0;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #047857;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: 0.15s;
+}
+
+.btn-lunas:hover {
+    background: #d1fae5;
+    border-color: #6ee7b7;
+}
+
+.t-center {
+    text-align: center;
+}
+
+@media (max-width: 768px) {
+    .denda-report-table {
+        min-width: 760px;
+    }
+
+    .denda-report-table .hide-m {
+        display: none;
+    }
+}

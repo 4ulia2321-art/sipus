@@ -43,7 +43,7 @@
     <div class="r-stats">
         @php
             $cards = [
-                ['icon' => 'bi-book',            'label' => 'Total Buku',    'value' => $stat['buku'],         'sub' => 'Data seluruh buku'],
+                ['icon' => 'bi-book',            'label' => 'Total Buku',    'value' => $stat['buku'],         'sub' => number_format($stat['tersedia'], 0, ',', '.') . ' tersedia · ' . number_format($stat['dipinjam'], 0, ',', '.') . ' dipinjam'],
                 ['icon' => 'bi-people-fill',     'label' => 'Total Anggota', 'value' => $stat['anggota'],      'sub' => 'Data seluruh anggota'],
                 ['icon' => 'bi-journal-text',    'label' => 'Peminjaman',    'value' => $stat['peminjaman'],   'sub' => 'Dalam periode'],
                 ['icon' => 'bi-arrow-repeat',    'label' => 'Pengembalian',  'value' => $stat['pengembalian'], 'sub' => 'Dalam periode'],

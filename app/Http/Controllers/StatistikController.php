@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\StokBuku;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,10 +38,12 @@ class StatistikController extends Controller
         }
 
         // Statistik ringkasan
+        $stok = StokBuku::ringkasan();
+
         $stat = [
-            'buku'      => DB::table('buku')->count(),
+            'buku'      => $stok['total'],
             'anggota'   => DB::table('siswa')->count(),
-            'dipinjam'  => DB::table('peminjaman')->where('status', 'Dipinjam')->count(),
+            'dipinjam'  => $stok['dipinjam'],
             'menunggu'  => DB::table('peminjaman')->where('status', 'Menunggu')->count(),
             'terlambat' => DB::table('peminjaman as p')
                 ->where('p.status', 'Dipinjam')

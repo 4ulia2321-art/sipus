@@ -54,6 +54,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/pengajuan', [PengajuanController::class, 'index'])->name('pengajuan');
         Route::get('/pengajuan/{buku}/create', [PengajuanController::class, 'create'])->name('pengajuan.create');
         Route::post('/pengajuan', [PengajuanController::class, 'store'])->name('pengajuan.store');
+
+        // Detail peminjaman siswa, pengajuan pengembalian, dan perpanjangan
+        Route::get('/riwayat/{peminjaman}', [RiwayatController::class, 'show'])->name('riwayat.show');
+        Route::post('/riwayat/{peminjaman}/pengembalian', [RiwayatController::class, 'ajukanPengembalian'])->name('riwayat.pengembalian');
+        Route::post('/riwayat/{peminjaman}/perpanjangan', [RiwayatController::class, 'ajukanPerpanjangan'])->name('riwayat.perpanjangan');
     });
 
     // Riwayat, notifikasi, profil, dan tentang (dipakai siswa & staf)
@@ -150,6 +155,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/peminjaman/{id}/edit', [PustakawanController::class, 'edit'])->name('peminjaman.edit');
         Route::put('/peminjaman/{id}', [PustakawanController::class, 'update'])->name('peminjaman.update');
         Route::post('/peminjaman/{id}/perpanjang', [PustakawanController::class, 'perpanjang'])->name('peminjaman.perpanjang');
+        Route::post('/peminjaman/{id}/perpanjangan/setujui', [PustakawanController::class, 'setujuiPerpanjangan'])->name('peminjaman.perpanjangan.setujui');
+        Route::post('/peminjaman/{id}/perpanjangan/tolak', [PustakawanController::class, 'tolakPerpanjangan'])->name('peminjaman.perpanjangan.tolak');
+        Route::post('/peminjaman/{id}/kembalikan', [PustakawanController::class, 'kembalikan'])->name('peminjaman.kembalikan');
 
         // Keterlambatan (daftar peminjaman yang melewati jatuh tempo)
         Route::get('/keterlambatan', [PustakawanController::class, 'keterlambatan'])->name('keterlambatan');
@@ -158,8 +166,6 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/pengembalian', [PustakawanController::class, 'pengembalian'])->name('pengembalian');
         Route::get('/pengembalian/create', [PustakawanController::class, 'pengembalianCreate'])->name('pengembalian.create');
         Route::post('/pengembalian', [PustakawanController::class, 'pengembalianStore'])->name('pengembalian.store');
-        Route::get('/pengembalian/{id}/edit', [PustakawanController::class, 'pengembalianEdit'])->name('pengembalian.edit');
-        Route::put('/pengembalian/{id}', [PustakawanController::class, 'pengembalianUpdate'])->name('pengembalian.update');
         Route::get('/pengembalian/{id}', [PustakawanController::class, 'pengembalianShow'])->name('pengembalian.show');
 
         // Denda transaksi (transaksi & denda pengembalian)
@@ -168,7 +174,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::put('/denda/{id}', [PustakawanController::class, 'dendaUpdate'])->name('denda.update');
         Route::patch('/denda/{id}/lunas', [PustakawanController::class, 'dendaToggle'])->name('denda.lunas');
 
-        // Laporan peminjaman & pengembalian (khusus Pustakawan)
+        // Laporan peminjaman, pengembalian, dan denda (khusus Pustakawan)
         Route::get('/laporan', [PustakawanController::class, 'laporan'])->name('laporan');
+        Route::get('/laporan/cetak', [PustakawanController::class, 'laporanCetak'])->name('laporan.cetak');
+        Route::get('/laporan/denda', [PustakawanController::class, 'laporanDenda'])->name('laporan.denda');
+        Route::get('/laporan/denda/pdf', [PustakawanController::class, 'laporanDendaPdf'])->name('laporan.denda.pdf');
     });
 });

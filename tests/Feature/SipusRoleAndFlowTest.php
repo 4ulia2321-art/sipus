@@ -264,7 +264,8 @@ class SipusRoleAndFlowTest extends TestCase
         $this->assertNotNull($pengembalian);
         $this->assertEquals(2100, (float) $pengembalian->denda); // 3 hari x Rp700
         $this->assertSame('Terlambat', $pengembalian->kategori);
-        $this->assertSame('Dikembalikan', DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->value('status'));
+        $this->assertSame('Belum Lunas', $pengembalian->status_bayar);
+        $this->assertSame('Menunggu Pembayaran', DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->value('status'));
         $this->assertSame(3, (int) DB::table('buku')->where('id_buku', $idBuku)->value('stok'));
     }
 
@@ -432,7 +433,7 @@ class SipusRoleAndFlowTest extends TestCase
         }
     }
 
-    public function test_pustakawan_bisa_edit_keterlambatan_pengembalian(): void
+    public function test_status_pengembalian_tidak_bisa_diedit(): void
     {
         $siswaUser = $this->buatUser('Siswa', 'siswa10');
         $idSiswa = $this->buatSiswa($siswaUser, '1010');
@@ -458,13 +459,26 @@ class SipusRoleAndFlowTest extends TestCase
             'status_bayar'    => 'Belum Lunas',
         ]);
 
-        // Halaman edit keterlambatan dapat dibuka Pustakawan.
+        // Tab riwayat pengembalian hanya menyediakan aksi Detail.
+        $this->actingAs($pustakawan)
+            ->get('/pustakawan/pengembalian?tab=riwayat')
+            ->assertOk()
+            ->assertSee('RIWAYAT PENGEMBALIAN')
+            ->assertSee('Detail')
+            ->assertDontSee("/pustakawan/pengembalian/{$idPengembalian}/edit", false);
+
+        // Detail pengembalian bersifat baca saja.
+        $this->actingAs($pustakawan)
+            ->get("/pustakawan/pengembalian/{$idPengembalian}")
+            ->assertOk()
+            ->assertSee('Terlambat')
+            ->assertDontSee("/pustakawan/pengembalian/{$idPengembalian}/edit", false);
+
+        // Route edit dan update pengembalian sudah tidak tersedia.
         $this->actingAs($pustakawan)
             ->get("/pustakawan/pengembalian/{$idPengembalian}/edit")
-            ->assertOk()
-            ->assertSee('Edit Pengembalian');
+            ->assertNotFound();
 
-        // Keterlambatan yang sudah diselesaikan bisa diubah menjadi Tepat Waktu.
         $this->actingAs($pustakawan)
             ->put("/pustakawan/pengembalian/{$idPengembalian}", [
                 'tanggal_kembali' => Carbon::today()->toDateString(),
@@ -472,18 +486,52 @@ class SipusRoleAndFlowTest extends TestCase
                 'denda'           => 0,
                 'status_bayar'    => 'Lunas',
             ])
-            ->assertRedirect(route('pustakawan.pengembalian.show', $idPengembalian));
+            ->assertStatus(405);
 
         $row = DB::table('pengembalian')->where('id_pengembalian', $idPengembalian)->first();
-        $this->assertSame('Tepat Waktu', $row->kategori);
-        $this->assertSame('Lunas', $row->status_bayar);
-        $this->assertEquals(0, (float) $row->denda);
+        $this->assertSame('Terlambat', $row->kategori);
+        $this->assertSame('Belum Lunas', $row->status_bayar);
+        $this->assertEquals(1500, (float) $row->denda);
+    }
 
-        // Detail pengembalian langsung menampilkan status terbaru.
+    public function test_status_peminjaman_tidak_bisa_diubah_menjadi_dikembalikan_lewat_form_edit(): void
+    {
+        $siswaUser = $this->buatUser('Siswa', 'siswa10b');
+        $idSiswa = $this->buatSiswa($siswaUser, '1010');
+        $pustakawan = $this->buatUser('Pustakawan', 'pustakawan10b');
+        $idBuku = $this->buatBuku(3);
+
+        $idPeminjaman = DB::table('peminjaman')->insertGetId([
+            'id_siswa'            => $idSiswa,
+            'tanggal_pinjam'      => Carbon::today()->subDays(10)->toDateString(),
+            'tanggal_jatuh_tempo' => Carbon::today()->subDays(3)->toDateString(),
+            'status'              => 'Dipinjam',
+        ]);
+        DB::table('detail_peminjaman')->insert([
+            'id_peminjaman' => $idPeminjaman,
+            'id_buku'       => $idBuku,
+            'jumlah'        => 1,
+        ]);
+
+        // Status Dikembalikan hanya boleh dihasilkan oleh tombol Kembalikan,
+        // bukan lewat form edit peminjaman.
         $this->actingAs($pustakawan)
-            ->get("/pustakawan/pengembalian/{$idPengembalian}")
-            ->assertOk()
-            ->assertSee('Tepat Waktu');
+            ->from("/pustakawan/peminjaman/{$idPeminjaman}/edit")
+            ->put("/pustakawan/peminjaman/{$idPeminjaman}", [
+                'tanggal_pinjam'      => Carbon::today()->subDays(10)->toDateString(),
+                'tanggal_jatuh_tempo' => Carbon::today()->addDays(4)->toDateString(),
+                'status'              => 'Dikembalikan',
+            ])
+            ->assertSessionHasErrors('status');
+
+        $this->assertSame(
+            'Dipinjam',
+            DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->value('status')
+        );
+        $this->assertSame(
+            0,
+            DB::table('pengembalian')->where('id_peminjaman', $idPeminjaman)->count()
+        );
     }
 
     public function test_edit_status_dari_keterlambatan_tetap_di_menu_keterlambatan(): void

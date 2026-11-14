@@ -22,7 +22,7 @@
     <section class="panel">
         <div class="panel-head">
             <h3>{{ $peminjaman->judul }}</h3>
-            <span class="status-badge status-{{ strtolower($peminjaman->status_efektif) }}">
+            <span class="status-badge status-{{ strtolower(str_replace(' ', '-', $peminjaman->status_efektif)) }}">
                 {{ $peminjaman->status_efektif }}
             </span>
         </div>
@@ -68,9 +68,46 @@
                 <dt><i class="bi bi-cash-coin"></i> Denda</dt>
                 <dd>{{ $peminjaman->denda > 0 ? 'Rp ' . number_format($peminjaman->denda, 0, ',', '.') : '-' }}</dd>
             </div>
+            @if ($peminjaman->perpanjangan_status)
+                <div>
+                    <dt><i class="bi bi-clock-history"></i> Perpanjangan</dt>
+                    <dd>
+                        {{ $peminjaman->perpanjangan_status }}
+                        @if ($peminjaman->perpanjangan_diminta_at)
+                            <small class="muted d-block">
+                                Diajukan {{ \Carbon\Carbon::parse($peminjaman->perpanjangan_diminta_at)->translatedFormat('d M Y H:i') }}
+                            </small>
+                        @endif
+                    </dd>
+                </div>
+            @endif
         </dl>
 
         <div class="loan-actions" style="margin-top: 18px;">
+            @if ($peminjaman->perpanjangan_status === 'Menunggu')
+                <form action="{{ route('pustakawan.peminjaman.perpanjangan.setujui', $peminjaman->id_peminjaman) }}" method="POST"
+                      onsubmit="return confirm(@js('Setujui perpanjangan peminjaman ' . $peminjaman->judul . ' oleh ' . $peminjaman->nama_siswa . '?'))">
+                    @csrf
+                    <button type="submit" class="btn-primary">
+                        <i class="bi bi-check-lg"></i> Setujui Perpanjangan
+                    </button>
+                </form>
+                <form action="{{ route('pustakawan.peminjaman.perpanjangan.tolak', $peminjaman->id_peminjaman) }}" method="POST"
+                      onsubmit="return confirm(@js('Tolak perpanjangan peminjaman ' . $peminjaman->judul . ' oleh ' . $peminjaman->nama_siswa . '?'))">
+                    @csrf
+                    <button type="submit" class="btn-outline">
+                        <i class="bi bi-x-lg"></i> Tolak Perpanjangan
+                    </button>
+                </form>
+            @elseif ($peminjaman->status_efektif === 'Dipinjam')
+                <form action="{{ route('pustakawan.peminjaman.perpanjang', $peminjaman->id_peminjaman) }}" method="POST"
+                      onsubmit="return confirm(@js('Perpanjang peminjaman ' . $peminjaman->judul . ' oleh ' . $peminjaman->nama_siswa . '?'))">
+                    @csrf
+                    <button type="submit" class="btn-outline">
+                        <i class="bi bi-clock"></i> Perpanjang
+                    </button>
+                </form>
+            @endif
             <a href="{{ route('pustakawan.peminjaman.edit', $peminjaman->id_peminjaman) }}" class="btn-outline">
                 <i class="bi bi-pencil"></i> Edit
             </a>

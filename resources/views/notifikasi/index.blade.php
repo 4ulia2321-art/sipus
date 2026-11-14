@@ -53,6 +53,11 @@
                 <div class="notif-body">
                     <strong>{{ $item->judul }}</strong>
                     <p>{{ $item->pesan }}</p>
+                    @if ($item->keterangan_denda)
+                        <span class="denda-chip">
+                            <i class="bi bi-cash-coin"></i> {{ $item->keterangan_denda }}
+                        </span>
+                    @endif
 
                     <div class="notif-meta-mobile">
                         <span>{{ $item->waktu->translatedFormat('d M Y') }} &bull; {{ $item->waktu->format('H:i') }}</span>

@@ -40,6 +40,9 @@
                     <option value="{{ $p->id_peminjaman }}" @selected(old('id_peminjaman') == $p->id_peminjaman)>
                         {{ $p->nama_siswa }} ({{ $p->nis }}) &mdash; {{ $p->judul }}
                         &middot; tempo {{ \Carbon\Carbon::parse($p->tanggal_jatuh_tempo)->translatedFormat('d M Y') }}
+                        @if ($p->pengajuan_kembali_at)
+                            &middot; pengajuan pengembalian
+                        @endif
                     </option>
                 @endforeach
             </select>

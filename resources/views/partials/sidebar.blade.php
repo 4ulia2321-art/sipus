@@ -19,7 +19,7 @@
             <a href="{{ route('pengajuan') }}" class="{{ request()->routeIs('pengajuan*') ? 'active' : '' }}">
                 <i class="bi bi-file-earmark-plus"></i> <span>Pengajuan Peminjaman</span>
             </a>
-            <a href="{{ route('riwayat') }}" class="{{ request()->routeIs('riwayat') ? 'active' : '' }}">
+            <a href="{{ route('riwayat') }}" class="{{ request()->routeIs('riwayat*') ? 'active' : '' }}">
                 <i class="bi bi-clock-history"></i> <span>Riwayat Peminjaman</span>
             </a>
             <a href="{{ route('notifikasi') }}" class="{{ request()->routeIs('notifikasi*') ? 'active' : '' }}">

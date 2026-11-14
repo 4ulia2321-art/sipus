@@ -16,12 +16,6 @@
             <a href="{{ route('admin.buku') }}" class="{{ request()->routeIs('admin.buku*') ? 'active' : '' }}">
                 <i class="bi bi-book"></i> <span>Data Buku</span>
             </a>
-            <a href="{{ route('admin.kategori') }}" class="{{ request()->routeIs('admin.kategori*') ? 'active' : '' }}">
-                <i class="bi bi-tags"></i> <span>Kategori Buku</span>
-            </a>
-            <a href="{{ route('admin.anggota') }}" class="{{ request()->routeIs('admin.anggota*') ? 'active' : '' }}">
-                <i class="bi bi-people"></i> <span>Anggota</span>
-            </a>
             <a href="{{ route('admin.kelas') }}" class="{{ request()->routeIs('admin.kelas*') ? 'active' : '' }}">
                 <i class="bi bi-diagram-3"></i> <span>Kelas</span>
             </a>

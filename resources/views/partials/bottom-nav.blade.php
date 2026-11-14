@@ -12,7 +12,6 @@
         $navItems = [
             ['admin.dashboard', 'Beranda',   'bi-house-door',   'admin.dashboard'],
             ['admin.buku',      'Buku',      'bi-book',         'admin.buku*'],
-            ['admin.anggota',   'Anggota',   'bi-people',       'admin.anggota*'],
             ['admin.statistik', 'Statistik', 'bi-graph-up-arrow','admin.statistik*'],
             ['admin.laporan',   'Laporan',   'bi-bar-chart',    'admin.laporan*'],
         ];
@@ -20,7 +19,7 @@
         // Item ke-4 berganti antara Riwayat dan Notifikasi, sesuai halaman yang sedang dibuka.
         $keempat = request()->routeIs('notifikasi*')
             ? ['notifikasi', 'Notifikasi', 'bi-bell', 'notifikasi*']
-            : ['riwayat', 'Riwayat', 'bi-clock-history', 'riwayat'];
+            : ['riwayat', 'Riwayat', 'bi-clock-history', 'riwayat*'];
 
         $navItems = [
             ['dashboard', 'Beranda',    'bi-house-door',        'dashboard'],
@@ -39,10 +38,10 @@
 
             // Peminjaman yang difilter "terlambat" ditandai sebagai menu Keterlambatan.
             if ($rute === 'pustakawan.keterlambatan') {
-                $aktif = $aktif || (request()->routeIs('pustakawan.peminjaman*') && request('status') === 'terlambat');
+                $aktif = $aktif || (request()->routeIs('pustakawan.peminjaman*') && request('status') === 'terlambat' && request('tab') !== 'riwayat');
             }
             if ($rute === 'pustakawan.peminjaman') {
-                $aktif = $aktif && request('status') !== 'terlambat' && request('asal') !== 'keterlambatan';
+                $aktif = $aktif && (request('status') !== 'terlambat' || request('tab') === 'riwayat') && request('asal') !== 'keterlambatan';
             }
         @endphp
         <a href="{{ route($rute) }}" class="{{ $aktif ? 'active' : '' }}">

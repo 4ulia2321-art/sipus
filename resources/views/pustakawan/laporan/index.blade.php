@@ -21,6 +21,7 @@
         <input type="hidden" name="tab" value="{{ $tab }}">
         <input type="hidden" name="mulai" id="mulai" value="{{ $mulai->format('Y-m-d') }}">
         <input type="hidden" name="selesai" id="selesai" value="{{ $selesai->format('Y-m-d') }}">
+        <input type="hidden" name="periode" id="periode" value="{{ $periode }}">
 
         <div class="page-header">
             <div class="page-title">
@@ -37,13 +38,55 @@
                 <i class="bi bi-chevron-down"></i>
             </div>
         </div>
+
+        {{-- Pilihan periode cepat: harian, bulanan, tahunan, atau rentang sendiri --}}
+        <div class="periode-bar">
+            <span class="periode-label"><i class="bi bi-calendar-range"></i> Periode laporan:</span>
+            <div class="periode-tabs">
+                @foreach (['harian' => 'Harian', 'bulanan' => 'Bulanan', 'tahunan' => 'Tahunan'] as $key => $label)
+                    <a href="{{ route('pustakawan.laporan', array_merge(request()->query(), ['periode' => $key, 'page' => null])) }}"
+                       class="periode-tab {{ $periode === $key ? 'active' : '' }}">{{ $label }}</a>
+                @endforeach
+                <a href="#" class="periode-tab {{ $periode === 'kustom' ? 'active' : '' }}"
+                   onclick="event.preventDefault(); bukaRentang();"
+                   title="Pilih rentang tanggal sendiri">Kustom</a>
+            </div>
+            <span class="periode-info">
+                {{ $mulai->translatedFormat('d M Y') }} &ndash; {{ $selesai->translatedFormat('d M Y') }}
+            </span>
+        </div>
     </form>
+
+    {{-- Navigasi tab laporan: selalu terlihat di bagian atas halaman --}}
+    <div class="card report-tabs-card">
+        <div class="tabs-row">
+            <div class="tabs">
+                @foreach (['peminjaman' => 'Peminjaman', 'pengembalian' => 'Pengembalian'] as $key => $label)
+                    <a href="{{ route('pustakawan.laporan', array_merge(request()->query(), ['tab' => $key, 'page' => null])) }}"
+                       class="tab {{ $tab === $key ? 'active' : '' }}">{{ $label }}</a>
+                @endforeach
+                <a href="{{ route('pustakawan.laporan.denda', array_merge(request()->query(), ['page' => null])) }}"
+                   class="tab">Denda</a>
+            </div>
+            <a href="{{ route('pustakawan.laporan.cetak', [
+                    'tab' => $tab,
+                    'periode' => $periode,
+                    'mulai' => $mulai->format('Y-m-d'),
+                    'selesai' => $selesai->format('Y-m-d'),
+                ]) }}"
+               target="_blank" rel="noopener"
+               class="btn btn-outline btn-print"
+               title="Buka pratinjau cetak; tanggal masih bisa diubah sebelum dicetak">
+                <i class="bi bi-printer"></i> Cetak Laporan
+            </a>
+        </div>
+    </div>
 
     {{-- Statistik --}}
     <div class="r-stats">
         @php
             $cards = [
-                ['icon' => 'bi-book',            'label' => 'Total Buku',    'value' => $stat['buku'],         'sub' => 'Data seluruh buku'],
+                ['icon' => 'bi-book',            'label' => 'Total Buku',    'value' => $stat['buku'],         'sub' => number_format($stat['tersedia'], 0, ',', '.') . ' tersedia · ' . number_format($stat['dipinjam'], 0, ',', '.') . ' dipinjam'],
                 ['icon' => 'bi-people-fill',     'label' => 'Total Anggota', 'value' => $stat['anggota'],      'sub' => 'Data seluruh anggota'],
                 ['icon' => 'bi-journal-text',    'label' => 'Peminjaman',    'value' => $stat['peminjaman'],   'sub' => 'Dalam periode'],
                 ['icon' => 'bi-arrow-repeat',    'label' => 'Pengembalian',  'value' => $stat['pengembalian'], 'sub' => 'Dalam periode'],
@@ -102,18 +145,48 @@
         </div>
     </div>
 
-    {{-- Tabel dengan tab --}}
+    {{-- Rekap & tabel laporan --}}
     <div class="card report-card">
-        <div class="tabs-row">
-            <div class="tabs">
-                @foreach (['peminjaman' => 'Peminjaman Terbaru', 'pengembalian' => 'Pengembalian Terbaru'] as $key => $label)
-                    <a href="{{ route('pustakawan.laporan', array_merge(request()->query(), ['tab' => $key, 'page' => null])) }}"
-                       class="tab {{ $tab === $key ? 'active' : '' }}">{{ $label }}</a>
-                @endforeach
+        <div class="rekap-head">
+            <h3 class="rekap-title">
+                <i class="bi {{ $tab === 'pengembalian' ? 'bi-arrow-repeat' : 'bi-journal-text' }}"></i>
+                {{ $tab === 'pengembalian' ? 'Rekap Pengembalian' : 'Rekap Peminjaman' }}
+            </h3>
+            <span class="rekap-periode">
+                {{ ucfirst($periode) }} &middot;
+                {{ $mulai->translatedFormat('d M Y') }} &ndash; {{ $selesai->translatedFormat('d M Y') }}
+            </span>
+        </div>
+        <div class="trx-summary rekap-denda">
+            <div class="trx-item">
+                <span class="trx-icon blue"><i class="bi bi-receipt"></i></span>
+                <div>
+                    <span class="trx-label">{{ $tab === 'pengembalian' ? 'Total Pengembalian' : 'Total Peminjaman' }}</span>
+                    <strong>{{ number_format($rekapDenda['total_transaksi'], 0, ',', '.') }}</strong>
+                </div>
             </div>
-            <button type="button" class="btn btn-outline btn-print" onclick="window.print()">
-                <i class="bi bi-printer"></i> Cetak Laporan
-            </button>
+            <div class="trx-item">
+                <span class="trx-icon orange"><i class="bi bi-cash-stack"></i></span>
+                <div>
+                    <span class="trx-label">Total Denda</span>
+                    <strong>Rp {{ number_format($rekapDenda['total_denda'], 0, ',', '.') }}</strong>
+                    <small class="trx-sub">{{ number_format($rekapDenda['jumlah_berdenda'], 0, ',', '.') }} transaksi berdenda</small>
+                </div>
+            </div>
+            <div class="trx-item">
+                <span class="trx-icon green"><i class="bi bi-check-circle"></i></span>
+                <div>
+                    <span class="trx-label">Denda Lunas</span>
+                    <strong>Rp {{ number_format($rekapDenda['lunas'], 0, ',', '.') }}</strong>
+                </div>
+            </div>
+            <div class="trx-item">
+                <span class="trx-icon red"><i class="bi bi-exclamation-triangle"></i></span>
+                <div>
+                    <span class="trx-label">Denda Belum Lunas</span>
+                    <strong>Rp {{ number_format($rekapDenda['belum'], 0, ',', '.') }}</strong>
+                </div>
+            </div>
         </div>
 
         <table class="table report-table">
@@ -151,6 +224,7 @@
             <span class="pg-desktop">{{ $rows->onEachSide(1)->links('partials.pagination') }}</span>
         </div>
     </div>
+
 @endsection
 
 @push('scripts')
@@ -158,8 +232,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-    // Rentang tanggal
-    flatpickr('#rentang', {
+    // Rentang tanggal (juga dibuka lewat tombol "Kustom")
+    const rentangLaporan = flatpickr('#rentang', {
         mode: 'range',
         locale: 'id',
         altInput: true,
@@ -170,10 +244,16 @@
             if (dates.length === 2) {
                 document.getElementById('mulai').value = inst.formatDate(dates[0], 'Y-m-d');
                 document.getElementById('selesai').value = inst.formatDate(dates[1], 'Y-m-d');
+                // Rentang manual dianggap periode kustom.
+                document.getElementById('periode').value = 'kustom';
                 document.getElementById('filter-form').submit();
             }
         }
     });
+
+    window.bukaRentang = function () {
+        rentangLaporan.open();
+    };
 
     // Grafik batang
     new Chart(document.getElementById('chartBar'), {

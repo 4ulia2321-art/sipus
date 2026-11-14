@@ -16,7 +16,10 @@
             $notifBaru = \Illuminate\Support\Facades\DB::table('peminjaman')->where('status', 'Menunggu')->exists();
         } else {
             $idSiswa = \Illuminate\Support\Facades\DB::table('siswa')->where('id_user', auth()->id())->value('id_siswa');
-            $notifBaru = $idSiswa && \Illuminate\Support\Facades\DB::table('peminjaman')->where('id_siswa', $idSiswa)->where('status', 'Menunggu')->exists();
+            $notifBaru = $idSiswa && (
+                \Illuminate\Support\Facades\DB::table('peminjaman')->where('id_siswa', $idSiswa)->where('status', 'Menunggu')->exists()
+                || \App\Support\NotifikasiSiswa::untukSiswa((int) $idSiswa)->isNotEmpty()
+            );
         }
     }
 @endphp

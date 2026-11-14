@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\Pengaturan;
+use App\Support\StokBuku;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -210,7 +211,37 @@ class AdminController extends Controller
             'status'              => ['required', 'in:Menunggu,Dipinjam,Dikembalikan,Ditolak'],
         ]);
 
-        DB::table('peminjaman')->where('id_peminjaman', $id)->update($data);
+        $details = DB::table('detail_peminjaman')->where('id_peminjaman', $id)->get();
+        $menjadiDipinjam = $peminjaman->status !== 'Dipinjam' && $data['status'] === 'Dipinjam';
+        $berhentiDipinjam = $peminjaman->status === 'Dipinjam' && $data['status'] !== 'Dipinjam';
+
+        if ($menjadiDipinjam) {
+            foreach ($details as $detail) {
+                $stok = (int) DB::table('buku')->where('id_buku', $detail->id_buku)->value('stok');
+
+                if ($stok < (int) $detail->jumlah) {
+                    return back()->withInput()->with('error', 'Stok buku tidak mencukupi untuk mengubah status menjadi Dipinjam.');
+                }
+            }
+        }
+
+        // Pengembalian yang sudah tercatat sudah menambah stok, jadi jangan
+        // menambahkannya lagi ketika status diubah lewat form edit.
+        $sudahDikembalikan = DB::table('pengembalian')->where('id_peminjaman', $id)->exists();
+
+        DB::transaction(function () use ($id, $data, $details, $menjadiDipinjam, $berhentiDipinjam, $sudahDikembalikan) {
+            if ($menjadiDipinjam) {
+                foreach ($details as $detail) {
+                    DB::table('buku')->where('id_buku', $detail->id_buku)->decrement('stok', $detail->jumlah);
+                }
+            } elseif ($berhentiDipinjam && ! $sudahDikembalikan) {
+                foreach ($details as $detail) {
+                    DB::table('buku')->where('id_buku', $detail->id_buku)->increment('stok', $detail->jumlah);
+                }
+            }
+
+            DB::table('peminjaman')->where('id_peminjaman', $id)->update($data);
+        });
 
         return redirect($this->areaRoute('peminjaman'))->with('success', 'Data peminjaman berhasil diperbarui.');
     }
@@ -376,13 +407,16 @@ class AdminController extends Controller
         $batas   = Carbon::parse($peminjaman->tanggal_jatuh_tempo);
         $telat   = $kembali->greaterThan($batas) ? (int) $batas->startOfDay()->diffInDays($kembali->copy()->startOfDay()) : 0;
         $denda   = $data['denda'] ?? $telat * Pengaturan::int('denda_per_hari', 500);
+        $statusBayar = $denda > 0 ? 'Belum Lunas' : 'Lunas';
+        $statusSelesai = $denda > 0 ? 'Menunggu Pembayaran' : 'Dikembalikan';
 
-        DB::transaction(function () use ($data, $peminjaman, $kembali, $telat, $denda) {
+        DB::transaction(function () use ($data, $peminjaman, $kembali, $telat, $denda, $statusBayar, $statusSelesai) {
             DB::table('pengembalian')->insert([
                 'id_peminjaman'   => $peminjaman->id_peminjaman,
                 'tanggal_kembali' => $kembali->toDateString(),
                 'denda'           => $denda,
                 'kategori'        => $data['kategori'] ?? ($telat > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                'status_bayar'    => $statusBayar,
             ]);
 
             $details = DB::table('detail_peminjaman')->where('id_peminjaman', $peminjaman->id_peminjaman)->get();
@@ -392,10 +426,12 @@ class AdminController extends Controller
 
             DB::table('peminjaman')
                 ->where('id_peminjaman', $peminjaman->id_peminjaman)
-                ->update(['status' => 'Dikembalikan']);
+                ->update(['status' => $statusSelesai]);
         });
 
-        return redirect($this->areaRoute('pengembalian'))->with('success', 'Pengembalian berhasil dicatat.');
+        return redirect($this->areaRoute('pengembalian'))->with('success', $denda > 0
+            ? 'Pengembalian berhasil dicatat. Denda Rp ' . number_format($denda, 0, ',', '.') . ' menunggu pelunasan.'
+            : 'Pengembalian berhasil dicatat.');
     }
 
     public function pengembalianShow($id)
@@ -618,11 +654,13 @@ class AdminController extends Controller
             ];
         });
 
+        $stok = StokBuku::ringkasan();
+
         $stats = [
-            ['color' => 'blue',   'icon' => 'bi-book',              'label' => 'Total Buku', 'value' => DB::table('buku')->count(), 'mini' => 'bi-collection', 'sub' => 'judul terdaftar'],
-            ['color' => 'green',  'icon' => 'bi-check-circle',      'label' => 'Tersedia',   'value' => DB::table('buku')->where('stok', '>', 2)->count(), 'mini' => 'bi-bookmark-check', 'sub' => 'siap dipinjam'],
-            ['color' => 'violet', 'icon' => 'bi-journal-arrow-up',  'label' => 'Dipinjam',   'value' => DB::table('detail_peminjaman')->join('peminjaman', 'peminjaman.id_peminjaman', '=', 'detail_peminjaman.id_peminjaman')->where('peminjaman.status', 'Dipinjam')->count(), 'mini' => 'bi-arrow-left-right', 'sub' => 'sedang beredar'],
-            ['color' => 'red',    'icon' => 'bi-exclamation-circle', 'label' => 'Stok Habis', 'value' => DB::table('buku')->where('stok', '<=', 0)->count(), 'mini' => 'bi-box-seam', 'sub' => 'perlu restock'],
+            ['color' => 'blue',   'icon' => 'bi-book',              'label' => 'Total Buku', 'value' => $stok['total'],    'mini' => 'bi-collection', 'sub' => 'total salinan'],
+            ['color' => 'green',  'icon' => 'bi-check-circle',      'label' => 'Tersedia',   'value' => $stok['tersedia'], 'mini' => 'bi-bookmark-check', 'sub' => 'salinan siap dipinjam'],
+            ['color' => 'violet', 'icon' => 'bi-journal-arrow-up',  'label' => 'Dipinjam',   'value' => $stok['dipinjam'], 'mini' => 'bi-arrow-left-right', 'sub' => 'salinan sedang beredar'],
+            ['color' => 'red',    'icon' => 'bi-exclamation-circle', 'label' => 'Stok Habis', 'value' => DB::table('buku')->where('stok', '<=', 0)->count(), 'mini' => 'bi-box-seam', 'sub' => 'judul perlu restock'],
         ];
 
         $daftarKategori = DB::table('kategori_buku')->orderBy('nama_kategori')->pluck('nama_kategori')->all();
@@ -1387,7 +1425,7 @@ class AdminController extends Controller
                 $q->from('detail_peminjaman as dp')
                     ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
                     ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
-                    ->selectRaw("GROUP_CONCAT(b.judul SEPARATOR ', ')");
+                    ->selectRaw($this->concatJudulSql());
             }, 'buku');
 
         if ($q = $request->input('q')) {
@@ -1466,10 +1504,16 @@ class AdminController extends Controller
             'status_bayar' => ['required', 'in:Belum Lunas,Lunas'],
         ]);
 
-        DB::table('pengembalian')->where('id_pengembalian', $id)->update([
-            'denda'        => $data['denda'],
-            'status_bayar' => $data['status_bayar'],
-        ]);
+        $statusBayar = (float) $data['denda'] <= 0 ? 'Lunas' : $data['status_bayar'];
+
+        DB::transaction(function () use ($id, $denda, $data, $statusBayar) {
+            DB::table('pengembalian')->where('id_pengembalian', $id)->update([
+                'denda'        => $data['denda'],
+                'status_bayar' => $statusBayar,
+            ]);
+
+            $this->sinkronStatusPengembalian((int) $denda->id_peminjaman, (float) $data['denda'], $statusBayar);
+        });
 
         return redirect($this->areaRoute('denda'))->with('success', 'Data denda berhasil diperbarui.');
     }
@@ -1481,10 +1525,32 @@ class AdminController extends Controller
         $denda = DB::table('pengembalian')->where('id_pengembalian', $id)->first();
         abort_if(! $denda, 404);
 
+        if ((float) $denda->denda <= 0) {
+            return back()->with('info', 'Denda Rp 0 sudah dianggap lunas.');
+        }
+
         $baru = ($denda->status_bayar === 'Lunas') ? 'Belum Lunas' : 'Lunas';
-        DB::table('pengembalian')->where('id_pengembalian', $id)->update(['status_bayar' => $baru]);
+
+        DB::transaction(function () use ($id, $denda, $baru) {
+            DB::table('pengembalian')->where('id_pengembalian', $id)->update(['status_bayar' => $baru]);
+            $this->sinkronStatusPengembalian((int) $denda->id_peminjaman, (float) $denda->denda, $baru);
+        });
 
         return back()->with('success', 'Denda ditandai sebagai ' . $baru . '.');
+    }
+
+    /**
+     * Status peminjaman hanya dianggap selesai bila denda sudah lunas.
+     */
+    private function sinkronStatusPengembalian(int $idPeminjaman, float $denda, string $statusBayar): void
+    {
+        $status = ($denda <= 0 || $statusBayar === 'Lunas')
+            ? 'Dikembalikan'
+            : 'Menunggu Pembayaran';
+
+        DB::table('peminjaman')
+            ->where('id_peminjaman', $idPeminjaman)
+            ->update(['status' => $status]);
     }
 
     public function statistik(Request $request)
@@ -1512,10 +1578,12 @@ class AdminController extends Controller
         }
 
         // Statistik ringkasan
+        $stok = StokBuku::ringkasan();
+
         $stat = [
-            'buku'      => DB::table('buku')->count(),
+            'buku'      => $stok['total'],
             'anggota'   => DB::table('siswa')->count(),
-            'dipinjam'  => DB::table('peminjaman')->where('status', 'Dipinjam')->count(),
+            'dipinjam'  => $stok['dipinjam'],
             'menunggu'  => DB::table('peminjaman')->where('status', 'Menunggu')->count(),
             'terlambat' => DB::table('peminjaman as p')
                 ->where('p.status', 'Dipinjam')
@@ -1607,8 +1675,12 @@ class AdminController extends Controller
         $ringkasTransaksi = null;
 
         // Statistik
+        $stok = StokBuku::ringkasan();
+
         $stat = [
-            'buku'         => DB::table('buku')->count(),
+            'buku'         => $stok['total'],
+            'tersedia'     => $stok['tersedia'],
+            'dipinjam'     => $stok['dipinjam'],
             'anggota'      => DB::table('siswa')->count(),
             'peminjaman'   => DB::table('peminjaman')->whereBetween('tanggal_pinjam', [$mulai, $selesai])->count(),
             'pengembalian' => DB::table('pengembalian')->whereBetween('tanggal_kembali', [$mulai, $selesai])->count(),
@@ -1655,10 +1727,12 @@ class AdminController extends Controller
         ])->all();
 
         // Subquery judul buku per peminjaman
+        $concatJudul = $this->concatJudulSql();
+
         $bukuSub = fn ($q) => $q->from('detail_peminjaman as dp')
             ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
             ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
-            ->selectRaw("GROUP_CONCAT(b.judul SEPARATOR ', ')");
+            ->selectRaw($concatJudul);
 
         // Tabel per tab
         if ($tab === 'pengembalian') {
@@ -1786,6 +1860,16 @@ class AdminController extends Controller
         return view('admin.laporan.index', compact(
             'tab', 'mulai', 'selesai', 'stat', 'grafik', 'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi'
         ));
+    }
+
+    /**
+     * SQL penggabung judul buku yang kompatibel dengan MySQL dan SQLite (tes).
+     */
+    private function concatJudulSql(): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "GROUP_CONCAT(b.judul, ', ')"
+            : "GROUP_CONCAT(b.judul SEPARATOR ', ')";
     }
 
     private function statusBadgeClass(?string $status): string

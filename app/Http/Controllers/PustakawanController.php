@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Support\Pengaturan;
+use App\Support\StokBuku;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,56 +34,136 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
+        $statusInput = strtolower((string) $request->input('status'));
+        $khususTerlambat = $statusInput === 'terlambat' && $request->input('tab') !== 'riwayat';
+        $today = Carbon::today();
+
+        // Menu Transaksi Peminjaman memiliki dua kelompok data: transaksi yang
+        // masih berjalan dan riwayat transaksi yang sudah dikembalikan.
+        $tab = $request->input('tab') === 'riwayat' ? 'riwayat' : 'aktif';
+
+        // Tautan lama (?status=dikembalikan tanpa tab) tetap diarahkan ke riwayat.
+        if ($request->input('tab') === null && $statusInput === 'dikembalikan') {
+            $tab = 'riwayat';
+        }
+
         $query = DB::table('peminjaman')
             ->join('siswa', 'siswa.id_siswa', '=', 'peminjaman.id_siswa')
-            ->join('detail_peminjaman', 'detail_peminjaman.id_peminjaman', '=', 'peminjaman.id_peminjaman')
-            ->join('buku', 'buku.id_buku', '=', 'detail_peminjaman.id_buku')
             ->leftJoin('pengembalian', 'pengembalian.id_peminjaman', '=', 'peminjaman.id_peminjaman')
             ->select(
                 'peminjaman.id_peminjaman',
                 'siswa.nama_siswa',
                 'siswa.kelas',
-                'buku.judul',
-                'buku.pengarang',
                 'peminjaman.tanggal_pinjam',
                 'peminjaman.tanggal_jatuh_tempo',
                 'peminjaman.status',
-                'pengembalian.tanggal_kembali'
+                'peminjaman.pengajuan_kembali_at',
+                'peminjaman.perpanjangan_diminta_at',
+                'peminjaman.perpanjangan_status',
+                'pengembalian.tanggal_kembali',
+                'pengembalian.denda',
+                'pengembalian.kategori as kategori_pengembalian'
             );
+
+        // Satu baris mewakili satu transaksi. Judul buku digabung agar total
+        // tabel sama dengan jumlah transaksi, bukan jumlah baris detail buku.
+        $concatJudul = $this->concatJudulSql();
+
+        $query->selectSub(function ($q) use ($concatJudul) {
+            $q->from('detail_peminjaman as dp')
+                ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                ->whereColumn('dp.id_peminjaman', 'peminjaman.id_peminjaman')
+                ->selectRaw($concatJudul);
+        }, 'judul')
+        ->selectSub(function ($q) {
+            $q->from('detail_peminjaman as dp')
+                ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                ->whereColumn('dp.id_peminjaman', 'peminjaman.id_peminjaman')
+                ->selectRaw('MIN(b.pengarang)');
+        }, 'pengarang');
 
         if ($q = $request->input('q')) {
             $query->where(function ($w) use ($q) {
-                $w->where('buku.judul', 'like', "%{$q}%")
-                    ->orWhere('buku.pengarang', 'like', "%{$q}%")
-                    ->orWhere('siswa.nama_siswa', 'like', "%{$q}%")
-                    ->orWhere('siswa.nis', 'like', "%{$q}%");
+                $w->where('siswa.nama_siswa', 'like', "%{$q}%")
+                    ->orWhere('siswa.nis', 'like', "%{$q}%")
+                    ->orWhereExists(function ($sub) use ($q) {
+                        $sub->select(DB::raw(1))
+                            ->from('detail_peminjaman as dp')
+                            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                            ->whereColumn('dp.id_peminjaman', 'peminjaman.id_peminjaman')
+                            ->where(function ($b) use ($q) {
+                                $b->where('b.judul', 'like', "%{$q}%")
+                                    ->orWhere('b.pengarang', 'like', "%{$q}%");
+                            });
+                    });
             });
         }
 
-        $today = Carbon::today();
+        if ($khususTerlambat) {
+            $query->where('peminjaman.status', 'Dipinjam')
+                ->whereNull('pengembalian.id_peminjaman')
+                ->whereNull('peminjaman.pengajuan_kembali_at')
+                ->whereDate('peminjaman.tanggal_jatuh_tempo', '<', $today);
+        } elseif ($tab === 'riwayat') {
+            $query->whereNotNull('pengembalian.id_peminjaman');
 
-        match (strtolower((string) $request->input('status'))) {
-            'dipinjam'     => $query->where('peminjaman.status', 'Dipinjam')->whereNull('pengembalian.id_peminjaman')->whereDate('peminjaman.tanggal_jatuh_tempo', '>=', $today),
-            'terlambat'    => $query->where('peminjaman.status', 'Dipinjam')->whereNull('pengembalian.id_peminjaman')->whereDate('peminjaman.tanggal_jatuh_tempo', '<', $today),
-            'dikembalikan' => $query->whereNotNull('pengembalian.id_peminjaman'),
-            'menunggu'     => $query->where('peminjaman.status', 'Menunggu')->whereNull('pengembalian.id_peminjaman'),
-            'ditolak'      => $query->where('peminjaman.status', 'Ditolak')->whereNull('pengembalian.id_peminjaman'),
-            default        => null,
-        };
+            match ($statusInput) {
+                'terlambat' => $query->where(function ($w) {
+                    $w->where('pengembalian.kategori', 'Terlambat')
+                        ->orWhere(function ($w) {
+                            $w->whereNull('pengembalian.kategori')
+                                ->whereColumn('pengembalian.tanggal_kembali', '>', 'peminjaman.tanggal_jatuh_tempo');
+                        });
+                }),
+                'tepat-waktu' => $query->where(function ($w) {
+                    $w->where('pengembalian.kategori', 'Tepat Waktu')
+                        ->orWhere(function ($w) {
+                            $w->whereNull('pengembalian.kategori')
+                                ->whereColumn('pengembalian.tanggal_kembali', '<=', 'peminjaman.tanggal_jatuh_tempo');
+                        });
+                }),
+                default => null,
+            };
+        } else {
+            $query->whereNull('pengembalian.id_peminjaman');
+
+            match ($statusInput) {
+                'dipinjam'     => $query->where('peminjaman.status', 'Dipinjam')->whereNull('peminjaman.pengajuan_kembali_at')->whereDate('peminjaman.tanggal_jatuh_tempo', '>=', $today),
+                'menunggu-pengembalian' => $query->whereNotNull('peminjaman.pengajuan_kembali_at'),
+                'menunggu'     => $query->where('peminjaman.status', 'Menunggu'),
+                'ditolak'      => $query->where('peminjaman.status', 'Ditolak'),
+                default        => null,
+            };
+        }
+
+        // Riwayat difilter memakai tanggal kembali; transaksi aktif memakai tanggal pinjam.
+        $kolomTanggal = (! $khususTerlambat && $tab === 'riwayat')
+            ? 'pengembalian.tanggal_kembali'
+            : 'peminjaman.tanggal_pinjam';
 
         match ($request->input('tanggal')) {
-            'hari-ini'  => $query->whereDate('peminjaman.tanggal_pinjam', $today),
-            '7-hari'    => $query->whereDate('peminjaman.tanggal_pinjam', '>=', $today->copy()->subDays(6)),
-            '30-hari'   => $query->whereDate('peminjaman.tanggal_pinjam', '>=', $today->copy()->subDays(29)),
-            'bulan-ini' => $query->whereMonth('peminjaman.tanggal_pinjam', $today->month)->whereYear('peminjaman.tanggal_pinjam', $today->year),
+            'hari-ini'  => $query->whereDate($kolomTanggal, $today),
+            '7-hari'    => $query->whereDate($kolomTanggal, '>=', $today->copy()->subDays(6)),
+            '30-hari'   => $query->whereDate($kolomTanggal, '>=', $today->copy()->subDays(29)),
+            'bulan-ini' => $query->whereMonth($kolomTanggal, $today->month)->whereYear($kolomTanggal, $today->year),
             default     => null,
         };
 
         $peminjaman = $query->orderByDesc('peminjaman.id_peminjaman')->paginate(10)->withQueryString();
 
         $peminjaman->through(function ($r) {
-            if ($r->tanggal_kembali) {
+            $tanggalKembali = $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali) : null;
+            $kategori = trim((string) $r->kategori_pengembalian);
+            $terlambat = $tanggalKembali !== null && ($kategori !== ''
+                ? strcasecmp($kategori, 'Terlambat') === 0
+                : $tanggalKembali->greaterThan(Carbon::parse($r->tanggal_jatuh_tempo)));
+
+            if ($r->status === 'Menunggu Pembayaran') {
+                $status = 'menunggu-pembayaran';
+            } elseif ($tanggalKembali || $r->status === 'Dikembalikan') {
                 $status = 'dikembalikan';
+            } elseif ($r->pengajuan_kembali_at) {
+                $status = 'menunggu-pengembalian';
             } elseif ($r->status === 'Dipinjam' && Carbon::parse($r->tanggal_jatuh_tempo)->lt(Carbon::today())) {
                 $status = 'terlambat';
             } else {
@@ -89,27 +171,45 @@ class PustakawanController extends Controller
             }
 
             return (object) [
-                'id'              => $r->id_peminjaman,
-                'foto'            => null,
-                'nama'            => $r->nama_siswa,
-                'kelas'           => $r->kelas,
-                'judul'           => $r->judul,
-                'pengarang'       => $r->pengarang,
-                'tanggal_pinjam'  => Carbon::parse($r->tanggal_pinjam),
-                'jatuh_tempo'     => Carbon::parse($r->tanggal_jatuh_tempo),
-                'tanggal_kembali' => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali) : null,
-                'status'          => $status,
+                'id'                     => $r->id_peminjaman,
+                'foto'                   => null,
+                'nama'                   => $r->nama_siswa,
+                'kelas'                  => $r->kelas,
+                'judul'                  => $r->judul,
+                'pengarang'              => $r->pengarang,
+                'tanggal_pinjam'         => Carbon::parse($r->tanggal_pinjam),
+                'jatuh_tempo'            => Carbon::parse($r->tanggal_jatuh_tempo),
+                'tanggal_kembali'        => $tanggalKembali,
+                'terlambat'              => $terlambat,
+                'denda'                  => (float) ($r->denda ?? 0),
+                'kategori_pengembalian'  => $kategori !== '' ? $kategori : null,
+                'status'                 => $status,
+                'perpanjangan_status'    => $r->perpanjangan_status,
+                'perpanjangan_diminta_at'=> $r->perpanjangan_diminta_at ? Carbon::parse($r->perpanjangan_diminta_at) : null,
             ];
         });
 
-        $khususTerlambat = strtolower((string) $request->input('status')) === 'terlambat';
+        $totalAktif = DB::table('peminjaman')
+            ->leftJoin('pengembalian', 'pengembalian.id_peminjaman', '=', 'peminjaman.id_peminjaman')
+            ->whereNull('pengembalian.id_peminjaman')
+            ->count();
+
+        $totalRiwayat = DB::table('pengembalian')->count();
 
         $judulHalaman = $khususTerlambat ? 'Keterlambatan' : 'Peminjaman Buku';
         $deskripsiHalaman = $khususTerlambat
             ? 'Daftar peminjaman yang melewati jatuh tempo dan perlu ditindaklanjuti.'
-            : 'Kelola data peminjaman buku oleh anggota perpustakaan.';
+            : 'Kelola transaksi peminjaman aktif dan riwayat pengembalian.';
 
-        return view('pustakawan.peminjaman.index', compact('peminjaman', 'judulHalaman', 'deskripsiHalaman', 'khususTerlambat'));
+        return view('pustakawan.peminjaman.index', compact(
+            'peminjaman',
+            'judulHalaman',
+            'deskripsiHalaman',
+            'khususTerlambat',
+            'tab',
+            'totalAktif',
+            'totalRiwayat'
+        ));
     }
 
     /**
@@ -196,8 +296,10 @@ class PustakawanController extends Controller
 
         abort_if(! $peminjaman, 404);
 
-        if ($peminjaman->tanggal_kembali) {
+        if ($peminjaman->tanggal_kembali || $peminjaman->status === 'Dikembalikan') {
             $peminjaman->status_efektif = 'Dikembalikan';
+        } elseif ($peminjaman->pengajuan_kembali_at) {
+            $peminjaman->status_efektif = 'Menunggu Pengembalian';
         } elseif ($peminjaman->status === 'Dipinjam' && Carbon::parse($peminjaman->tanggal_jatuh_tempo)->lt(Carbon::today())) {
             $peminjaman->status_efektif = 'Terlambat';
         } else {
@@ -230,15 +332,45 @@ class PustakawanController extends Controller
         $data = $request->validate([
             'tanggal_pinjam'      => ['required', 'date'],
             'tanggal_jatuh_tempo' => ['required', 'date', 'after_or_equal:tanggal_pinjam'],
-            'status'              => ['required', 'in:Menunggu,Dipinjam,Dikembalikan,Ditolak'],
+            'status'              => ['required', 'in:Menunggu,Dipinjam,Ditolak'],
             'asal'                => ['nullable', 'in:keterlambatan'],
         ]);
 
-        DB::table('peminjaman')->where('id_peminjaman', $id)->update([
-            'tanggal_pinjam'      => $data['tanggal_pinjam'],
-            'tanggal_jatuh_tempo' => $data['tanggal_jatuh_tempo'],
-            'status'              => $data['status'],
-        ]);
+        $details = DB::table('detail_peminjaman')->where('id_peminjaman', $id)->get();
+        $menjadiDipinjam = $peminjaman->status !== 'Dipinjam' && $data['status'] === 'Dipinjam';
+        $berhentiDipinjam = $peminjaman->status === 'Dipinjam' && $data['status'] !== 'Dipinjam';
+
+        if ($menjadiDipinjam) {
+            foreach ($details as $detail) {
+                $stok = (int) DB::table('buku')->where('id_buku', $detail->id_buku)->value('stok');
+
+                if ($stok < (int) $detail->jumlah) {
+                    return back()->withInput()->with('error', 'Stok buku tidak mencukupi untuk mengubah status menjadi Dipinjam.');
+                }
+            }
+        }
+
+        // Pengembalian yang sudah tercatat sudah menambah stok, jadi jangan
+        // menambahkannya lagi ketika status diubah lewat form edit.
+        $sudahDikembalikan = DB::table('pengembalian')->where('id_peminjaman', $id)->exists();
+
+        DB::transaction(function () use ($id, $data, $details, $menjadiDipinjam, $berhentiDipinjam, $sudahDikembalikan) {
+            if ($menjadiDipinjam) {
+                foreach ($details as $detail) {
+                    DB::table('buku')->where('id_buku', $detail->id_buku)->decrement('stok', $detail->jumlah);
+                }
+            } elseif ($berhentiDipinjam && ! $sudahDikembalikan) {
+                foreach ($details as $detail) {
+                    DB::table('buku')->where('id_buku', $detail->id_buku)->increment('stok', $detail->jumlah);
+                }
+            }
+
+            DB::table('peminjaman')->where('id_peminjaman', $id)->update([
+                'tanggal_pinjam'      => $data['tanggal_pinjam'],
+                'tanggal_jatuh_tempo' => $data['tanggal_jatuh_tempo'],
+                'status'              => $data['status'],
+            ]);
+        });
 
         $redirect = ($data['asal'] ?? null) === 'keterlambatan'
             ? route('pustakawan.keterlambatan')
@@ -258,6 +390,18 @@ class PustakawanController extends Controller
             return back()->with('info', 'Peminjaman ini tidak dapat diperpanjang.');
         }
 
+        if (DB::table('pengembalian')->where('id_peminjaman', $id)->exists()) {
+            return back()->with('info', 'Peminjaman ini sudah dicatat sebagai dikembalikan.');
+        }
+
+        if (! empty($peminjaman->pengajuan_kembali_at)) {
+            return back()->with('info', 'Siswa sudah mengajukan pengembalian, sehingga peminjaman tidak dapat diperpanjang.');
+        }
+
+        if ($peminjaman->perpanjangan_status === 'Menunggu') {
+            return back()->with('info', 'Pengajuan perpanjangan siswa sudah menunggu verifikasi. Gunakan tombol Setujui atau Tolak.');
+        }
+
         $lama = Pengaturan::int('lama_pinjam_hari', 7);
 
         DB::table('peminjaman')->where('id_peminjaman', $id)->update([
@@ -265,6 +409,156 @@ class PustakawanController extends Controller
         ]);
 
         return back()->with('success', "Masa peminjaman diperpanjang {$lama} hari.");
+    }
+
+    /**
+     * Setujui pengajuan perpanjangan siswa dan tambah jatuh tempo.
+     */
+    public function setujuiPerpanjangan($id)
+    {
+        $this->ensureAdmin();
+
+        $hasil = DB::transaction(function () use ($id) {
+            $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $id)->lockForUpdate()->first();
+
+            if (! $peminjaman) {
+                return 'tidak_ditemukan';
+            }
+
+            if (DB::table('pengembalian')->where('id_peminjaman', $id)->exists()) {
+                return 'sudah_dikembalikan';
+            }
+
+            if ($peminjaman->status !== 'Dipinjam') {
+                return 'status_tidak_sesuai';
+            }
+
+            if ($peminjaman->perpanjangan_status !== 'Menunggu') {
+                return 'tidak_ada_pengajuan';
+            }
+
+            $lama = Pengaturan::int('lama_pinjam_hari', 7);
+
+            DB::table('peminjaman')->where('id_peminjaman', $id)->update([
+                'tanggal_jatuh_tempo' => Carbon::parse($peminjaman->tanggal_jatuh_tempo)->addDays($lama)->toDateString(),
+                'perpanjangan_status' => 'Disetujui',
+            ]);
+
+            return 'ok';
+        });
+
+        return match ($hasil) {
+            'ok' => back()->with('success', 'Pengajuan perpanjangan disetujui. Jatuh tempo diperpanjang ' . Pengaturan::int('lama_pinjam_hari', 7) . ' hari.'),
+            'sudah_dikembalikan' => back()->with('info', 'Peminjaman ini sudah dicatat sebagai dikembalikan.'),
+            'status_tidak_sesuai' => back()->with('error', 'Peminjaman ini belum dipinjam sehingga tidak dapat diperpanjang.'),
+            'tidak_ada_pengajuan' => back()->with('info', 'Tidak ada pengajuan perpanjangan yang menunggu verifikasi.'),
+            default => back()->with('error', 'Peminjaman tidak ditemukan.'),
+        };
+    }
+
+    /**
+     * Tolak pengajuan perpanjangan siswa tanpa mengubah jatuh tempo.
+     */
+    public function tolakPerpanjangan($id)
+    {
+        $this->ensureAdmin();
+
+        $hasil = DB::transaction(function () use ($id) {
+            $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $id)->lockForUpdate()->first();
+
+            if (! $peminjaman) {
+                return 'tidak_ditemukan';
+            }
+
+            if (DB::table('pengembalian')->where('id_peminjaman', $id)->exists()) {
+                return 'sudah_dikembalikan';
+            }
+
+            if ($peminjaman->perpanjangan_status !== 'Menunggu') {
+                return 'tidak_ada_pengajuan';
+            }
+
+            DB::table('peminjaman')->where('id_peminjaman', $id)->update([
+                'perpanjangan_status' => 'Ditolak',
+            ]);
+
+            return 'ok';
+        });
+
+        return match ($hasil) {
+            'ok' => back()->with('success', 'Pengajuan perpanjangan ditolak.'),
+            'sudah_dikembalikan' => back()->with('info', 'Peminjaman ini sudah dicatat sebagai dikembalikan.'),
+            'tidak_ada_pengajuan' => back()->with('info', 'Tidak ada pengajuan perpanjangan yang menunggu verifikasi.'),
+            default => back()->with('error', 'Peminjaman tidak ditemukan.'),
+        };
+    }
+
+    /**
+     * Catat pengembalian langsung dari daftar/detail peminjaman.
+     *
+     * Tombol satu-klik ini memakai tanggal hari ini dan menghitung denda
+     * otomatis, sehingga Pustakawan tidak perlu mengubah status lewat form edit.
+     */
+    public function kembalikan($id)
+    {
+        $this->ensureAdmin();
+
+        $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $id)->first();
+        abort_if(! $peminjaman, 404);
+
+        if (DB::table('pengembalian')->where('id_peminjaman', $id)->exists()) {
+            return back()->with('info', 'Peminjaman ini sudah dicatat sebagai dikembalikan.');
+        }
+
+        if ($peminjaman->status !== 'Dipinjam') {
+            return back()->with('error', 'Peminjaman ini belum dipinjam sehingga tidak dapat dikembalikan.');
+        }
+
+        $kembali = Carbon::today();
+        $batas   = Carbon::parse($peminjaman->tanggal_jatuh_tempo)->startOfDay();
+        $telat   = $kembali->greaterThan($batas)
+            ? (int) $batas->diffInDays($kembali->copy()->startOfDay())
+            : 0;
+        $denda   = $telat * Pengaturan::int('denda_per_hari', 500);
+        $statusBayar = $denda > 0 ? 'Belum Lunas' : 'Lunas';
+        $statusSelesai = $denda > 0 ? 'Menunggu Pembayaran' : 'Dikembalikan';
+
+        DB::transaction(function () use ($peminjaman, $kembali, $telat, $denda, $statusBayar, $statusSelesai) {
+            DB::table('pengembalian')->insert([
+                'id_peminjaman'   => $peminjaman->id_peminjaman,
+                'tanggal_kembali' => $kembali->toDateString(),
+                'denda'           => $denda,
+                'kategori'        => $telat > 0 ? 'Terlambat' : 'Tepat Waktu',
+                'status_bayar'    => $statusBayar,
+            ]);
+
+            $details = DB::table('detail_peminjaman')
+                ->where('id_peminjaman', $peminjaman->id_peminjaman)
+                ->get();
+
+            foreach ($details as $detail) {
+                DB::table('buku')->where('id_buku', $detail->id_buku)->increment('stok', $detail->jumlah);
+            }
+
+            DB::table('peminjaman')
+                ->where('id_peminjaman', $peminjaman->id_peminjaman)
+                ->update(['status' => $statusSelesai]);
+
+            if ($peminjaman->perpanjangan_status === 'Menunggu') {
+                DB::table('peminjaman')
+                    ->where('id_peminjaman', $peminjaman->id_peminjaman)
+                    ->update([
+                        'perpanjangan_status'     => null,
+                        'perpanjangan_diminta_at' => null,
+                    ]);
+            }
+        });
+
+        $pesan = $telat > 0
+            ? 'Pengembalian dicatat. Terlambat ' . $telat . ' hari dengan denda Rp ' . number_format($denda, 0, ',', '.') . '. Status: Menunggu Pembayaran.'
+            : 'Pengembalian dicatat tepat waktu tanpa denda.';
+
+        return back()->with('success', $pesan);
     }
 
     // =========================================================
@@ -275,11 +569,16 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
+        // Menu pengembalian memiliki dua kelompok data: antrean peminjaman
+        // aktif dan riwayat pengembalian. Tab menjaga halaman tetap fokus
+        // pada satu tabel tanpa menghilangkan filter yang sedang dipakai.
+        $tab = $request->input('tab') === 'riwayat' ? 'riwayat' : 'aktif';
+
+        $concatJudul = $this->concatJudulSql();
+
         $query = DB::table('pengembalian as p')
             ->join('peminjaman as pm', 'pm.id_peminjaman', '=', 'p.id_peminjaman')
             ->join('siswa as s', 's.id_siswa', '=', 'pm.id_siswa')
-            ->join('detail_peminjaman as dp', 'dp.id_peminjaman', '=', 'pm.id_peminjaman')
-            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
             ->select(
                 'p.id_pengembalian as id',
                 'p.tanggal_kembali',
@@ -290,17 +589,42 @@ class PustakawanController extends Controller
                 's.id_siswa',
                 's.nis',
                 's.nama_siswa',
-                's.kelas',
-                'b.id_buku as buku_id',
-                'b.judul',
-                'b.pengarang'
-            );
+                's.kelas'
+            )
+            // Satu baris mewakili satu transaksi pengembalian. Detail buku
+            // digabung agar total riwayat tidak terlipat ganda.
+            ->selectSub(function ($q) use ($concatJudul) {
+                $q->from('detail_peminjaman as dp')
+                    ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                    ->whereColumn('dp.id_peminjaman', 'pm.id_peminjaman')
+                    ->selectRaw($concatJudul);
+            }, 'judul')
+            ->selectSub(function ($q) {
+                $q->from('detail_peminjaman as dp')
+                    ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                    ->whereColumn('dp.id_peminjaman', 'pm.id_peminjaman')
+                    ->selectRaw('MIN(b.pengarang)');
+            }, 'pengarang')
+            ->selectSub(function ($q) {
+                $q->from('detail_peminjaman as dp')
+                    ->whereColumn('dp.id_peminjaman', 'pm.id_peminjaman')
+                    ->selectRaw('MIN(dp.id_buku)');
+            }, 'buku_id');
 
         if ($q = $request->input('q')) {
             $query->where(function ($w) use ($q) {
-                $w->where('b.judul', 'like', "%{$q}%")
-                    ->orWhere('s.nama_siswa', 'like', "%{$q}%")
-                    ->orWhere('s.nis', 'like', "%{$q}%");
+                $w->where('s.nama_siswa', 'like', "%{$q}%")
+                    ->orWhere('s.nis', 'like', "%{$q}%")
+                    ->orWhereExists(function ($sub) use ($q) {
+                        $sub->select(DB::raw(1))
+                            ->from('detail_peminjaman as dp')
+                            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                            ->whereColumn('dp.id_peminjaman', 'pm.id_peminjaman')
+                            ->where(function ($b) use ($q) {
+                                $b->where('b.judul', 'like', "%{$q}%")
+                                    ->orWhere('b.pengarang', 'like', "%{$q}%");
+                            });
+                    });
             });
         }
 
@@ -334,7 +658,7 @@ class PustakawanController extends Controller
             $kembali = Carbon::parse($r->tanggal_kembali);
             $batas   = Carbon::parse($r->batas_kembali);
 
-            // Status keterlambatan mengikuti data tersimpan (dapat diedit),
+            // Status keterlambatan mengikuti data tersimpan (read-only),
             // dengan fallback perbandingan tanggal untuk data lama tanpa kategori.
             $terlambat = $r->kategori !== null && trim($r->kategori) !== ''
                 ? strcasecmp(trim($r->kategori), 'Terlambat') === 0
@@ -366,7 +690,44 @@ class PustakawanController extends Controller
             ->orderBy('nama_siswa')
             ->get(['id_siswa as id', 'nama_siswa as nama']);
 
-        return view('pustakawan.pengembalian.index', compact('pengembalian', 'anggota'));
+        // Antrean peminjaman aktif agar Pustakawan dapat mencatat pengembalian
+        // langsung dengan satu tombol tanpa membuka form manual.
+        $antrean = DB::table('peminjaman as pm')
+            ->join('siswa as s', 's.id_siswa', '=', 'pm.id_siswa')
+            ->join('detail_peminjaman as dp', 'dp.id_peminjaman', '=', 'pm.id_peminjaman')
+            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+            ->leftJoin('pengembalian as p', 'p.id_peminjaman', '=', 'pm.id_peminjaman')
+            ->whereNull('p.id_peminjaman')
+            ->where('pm.status', 'Dipinjam')
+            ->select(
+                'pm.id_peminjaman',
+                'pm.tanggal_pinjam',
+                'pm.tanggal_jatuh_tempo',
+                'pm.pengajuan_kembali_at',
+                's.nama_siswa',
+                's.kelas',
+                'b.judul',
+                'b.pengarang'
+            )
+            ->orderByRaw('CASE WHEN pm.pengajuan_kembali_at IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('pm.tanggal_jatuh_tempo')
+            ->orderByDesc('pm.id_peminjaman')
+            ->limit(10)
+            ->get()
+            ->map(function ($r) {
+                $r->terlambat = Carbon::parse($r->tanggal_jatuh_tempo)->lt(Carbon::today());
+                $r->menunggu_pengembalian = (bool) $r->pengajuan_kembali_at;
+
+                return $r;
+            });
+
+        $totalAktif = DB::table('peminjaman as pm')
+            ->leftJoin('pengembalian as p', 'p.id_peminjaman', '=', 'pm.id_peminjaman')
+            ->whereNull('p.id_peminjaman')
+            ->where('pm.status', 'Dipinjam')
+            ->count();
+
+        return view('pustakawan.pengembalian.index', compact('pengembalian', 'anggota', 'antrean', 'totalAktif', 'tab'));
     }
 
     public function pengembalianCreate()
@@ -386,8 +747,10 @@ class PustakawanController extends Controller
                 's.nis',
                 'b.judul',
                 'pm.tanggal_pinjam',
-                'pm.tanggal_jatuh_tempo'
+                'pm.tanggal_jatuh_tempo',
+                'pm.pengajuan_kembali_at'
             )
+            ->orderByDesc('pm.pengajuan_kembali_at')
             ->orderBy('s.nama_siswa')
             ->get();
 
@@ -420,13 +783,16 @@ class PustakawanController extends Controller
         $batas   = Carbon::parse($peminjaman->tanggal_jatuh_tempo);
         $telat   = $kembali->greaterThan($batas) ? (int) $batas->startOfDay()->diffInDays($kembali->copy()->startOfDay()) : 0;
         $denda   = $data['denda'] ?? $telat * Pengaturan::int('denda_per_hari', 500);
+        $statusBayar = $denda > 0 ? 'Belum Lunas' : 'Lunas';
+        $statusSelesai = $denda > 0 ? 'Menunggu Pembayaran' : 'Dikembalikan';
 
-        DB::transaction(function () use ($data, $peminjaman, $kembali, $telat, $denda) {
+        DB::transaction(function () use ($data, $peminjaman, $kembali, $telat, $denda, $statusBayar, $statusSelesai) {
             DB::table('pengembalian')->insert([
                 'id_peminjaman'   => $peminjaman->id_peminjaman,
                 'tanggal_kembali' => $kembali->toDateString(),
                 'denda'           => $denda,
                 'kategori'        => $data['kategori'] ?? ($telat > 0 ? 'Terlambat' : 'Tepat Waktu'),
+                'status_bayar'    => $statusBayar,
             ]);
 
             $details = DB::table('detail_peminjaman')->where('id_peminjaman', $peminjaman->id_peminjaman)->get();
@@ -436,10 +802,21 @@ class PustakawanController extends Controller
 
             DB::table('peminjaman')
                 ->where('id_peminjaman', $peminjaman->id_peminjaman)
-                ->update(['status' => 'Dikembalikan']);
+                ->update(['status' => $statusSelesai]);
+
+            if ($peminjaman->perpanjangan_status === 'Menunggu') {
+                DB::table('peminjaman')
+                    ->where('id_peminjaman', $peminjaman->id_peminjaman)
+                    ->update([
+                        'perpanjangan_status'     => null,
+                        'perpanjangan_diminta_at' => null,
+                    ]);
+            }
         });
 
-        return redirect(route('pustakawan.pengembalian'))->with('success', 'Pengembalian berhasil dicatat.');
+        return redirect(route('pustakawan.pengembalian'))->with('success', $denda > 0
+            ? 'Pengembalian berhasil dicatat. Denda Rp ' . number_format($denda, 0, ',', '.') . ' menunggu pelunasan.'
+            : 'Pengembalian berhasil dicatat.');
     }
 
     public function pengembalianShow($id)
@@ -491,82 +868,6 @@ class PustakawanController extends Controller
             : 0;
 
         return view('pustakawan.pengembalian.show', ['pengembalian' => $r]);
-    }
-
-    /**
-     * Form edit data pengembalian, termasuk keterlambatan yang sudah diselesaikan.
-     */
-    public function pengembalianEdit($id)
-    {
-        $this->ensureAdmin();
-
-        $pengembalian = DB::table('pengembalian as p')
-            ->join('peminjaman as pm', 'pm.id_peminjaman', '=', 'p.id_peminjaman')
-            ->join('siswa as s', 's.id_siswa', '=', 'pm.id_siswa')
-            ->join('detail_peminjaman as dp', 'dp.id_peminjaman', '=', 'pm.id_peminjaman')
-            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
-            ->where('p.id_pengembalian', $id)
-            ->select(
-                'p.id_pengembalian',
-                'p.id_peminjaman',
-                'p.tanggal_kembali',
-                'p.denda',
-                'p.kategori',
-                'p.status_bayar',
-                'pm.tanggal_pinjam',
-                'pm.tanggal_jatuh_tempo',
-                's.nis',
-                's.nama_siswa',
-                's.kelas',
-                'b.judul',
-                'b.pengarang'
-            )
-            ->first();
-
-        abort_if(! $pengembalian, 404);
-
-        $kembali = Carbon::parse($pengembalian->tanggal_kembali);
-        $batas   = Carbon::parse($pengembalian->tanggal_jatuh_tempo);
-
-        $pengembalian->tanggal_kembali     = $kembali;
-        $pengembalian->tanggal_pinjam      = Carbon::parse($pengembalian->tanggal_pinjam);
-        $pengembalian->tanggal_jatuh_tempo = $batas;
-        $pengembalian->lama_terlambat      = ($pengembalian->kategori !== null && trim($pengembalian->kategori) !== ''
-                ? strcasecmp(trim($pengembalian->kategori), 'Terlambat') === 0
-                : $kembali->greaterThan($batas))
-            ? (int) $batas->copy()->startOfDay()->diffInDays($kembali->copy()->startOfDay())
-            : 0;
-
-        return view('pustakawan.pengembalian.edit', compact('pengembalian'));
-    }
-
-    /**
-     * Simpan perubahan data pengembalian/keterlambatan.
-     */
-    public function pengembalianUpdate(Request $request, $id)
-    {
-        $this->ensureAdmin();
-
-        $pengembalian = DB::table('pengembalian')->where('id_pengembalian', $id)->first();
-        abort_if(! $pengembalian, 404);
-
-        $data = $request->validate([
-            'tanggal_kembali' => ['required', 'date'],
-            'kategori'        => ['required', 'in:Tepat Waktu,Terlambat'],
-            'denda'           => ['required', 'numeric', 'min:0'],
-            'status_bayar'    => ['required', 'in:Belum Lunas,Lunas'],
-        ]);
-
-        DB::table('pengembalian')->where('id_pengembalian', $id)->update([
-            'tanggal_kembali' => Carbon::parse($data['tanggal_kembali'])->toDateString(),
-            'kategori'        => $data['kategori'],
-            'denda'           => $data['denda'],
-            'status_bayar'    => $data['status_bayar'],
-        ]);
-
-        return redirect()
-            ->route('pustakawan.pengembalian.show', $id)
-            ->with('success', 'Data pengembalian dan keterlambatan berhasil diperbarui.');
     }
 
     // =========================================================
@@ -1014,11 +1315,13 @@ class PustakawanController extends Controller
             ];
         });
 
+        $stok = StokBuku::ringkasan();
+
         $stats = [
-            ['color' => 'blue',   'icon' => 'bi-book',              'label' => 'Total Buku', 'value' => DB::table('buku')->count(), 'mini' => 'bi-collection', 'sub' => 'judul terdaftar'],
-            ['color' => 'green',  'icon' => 'bi-check-circle',      'label' => 'Tersedia',   'value' => DB::table('buku')->where('stok', '>', 2)->count(), 'mini' => 'bi-bookmark-check', 'sub' => 'siap dipinjam'],
-            ['color' => 'violet', 'icon' => 'bi-journal-arrow-up',  'label' => 'Dipinjam',   'value' => DB::table('detail_peminjaman')->join('peminjaman', 'peminjaman.id_peminjaman', '=', 'detail_peminjaman.id_peminjaman')->where('peminjaman.status', 'Dipinjam')->count(), 'mini' => 'bi-arrow-left-right', 'sub' => 'sedang beredar'],
-            ['color' => 'red',    'icon' => 'bi-exclamation-circle', 'label' => 'Stok Habis', 'value' => DB::table('buku')->where('stok', '<=', 0)->count(), 'mini' => 'bi-box-seam', 'sub' => 'perlu restock'],
+            ['color' => 'blue',   'icon' => 'bi-book',              'label' => 'Total Buku', 'value' => $stok['total'],    'mini' => 'bi-collection', 'sub' => 'total salinan'],
+            ['color' => 'green',  'icon' => 'bi-check-circle',      'label' => 'Tersedia',   'value' => $stok['tersedia'], 'mini' => 'bi-bookmark-check', 'sub' => 'salinan siap dipinjam'],
+            ['color' => 'violet', 'icon' => 'bi-journal-arrow-up',  'label' => 'Dipinjam',   'value' => $stok['dipinjam'], 'mini' => 'bi-arrow-left-right', 'sub' => 'salinan sedang beredar'],
+            ['color' => 'red',    'icon' => 'bi-exclamation-circle', 'label' => 'Stok Habis', 'value' => DB::table('buku')->where('stok', '<=', 0)->count(), 'mini' => 'bi-box-seam', 'sub' => 'judul perlu restock'],
         ];
 
         $daftarKategori = DB::table('kategori_buku')->orderBy('nama_kategori')->pluck('nama_kategori')->all();
@@ -1165,6 +1468,8 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
+        $concatJudul = $this->concatJudulSql();
+
         $query = DB::table('pengembalian as pg')
             ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
             ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
@@ -1180,11 +1485,11 @@ class PustakawanController extends Controller
                 'pg.kategori',
                 'pg.status_bayar'
             )
-            ->selectSub(function ($q) {
+            ->selectSub(function ($q) use ($concatJudul) {
                 $q->from('detail_peminjaman as dp')
                     ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
                     ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
-                    ->selectRaw("GROUP_CONCAT(b.judul SEPARATOR ', ')");
+                    ->selectRaw($concatJudul);
             }, 'buku');
 
         if ($q = $request->input('q')) {
@@ -1263,10 +1568,17 @@ class PustakawanController extends Controller
             'status_bayar' => ['required', 'in:Belum Lunas,Lunas'],
         ]);
 
-        DB::table('pengembalian')->where('id_pengembalian', $id)->update([
-            'denda'        => $data['denda'],
-            'status_bayar' => $data['status_bayar'],
-        ]);
+        // Denda nol tidak mungkin ditagih, sehingga langsung dianggap lunas.
+        $statusBayar = (float) $data['denda'] <= 0 ? 'Lunas' : $data['status_bayar'];
+
+        DB::transaction(function () use ($id, $denda, $data, $statusBayar) {
+            DB::table('pengembalian')->where('id_pengembalian', $id)->update([
+                'denda'        => $data['denda'],
+                'status_bayar' => $statusBayar,
+            ]);
+
+            $this->sinkronStatusPengembalian((int) $denda->id_peminjaman, (float) $data['denda'], $statusBayar);
+        });
 
         return redirect(route('pustakawan.denda'))->with('success', 'Data denda berhasil diperbarui.');
     }
@@ -1278,10 +1590,32 @@ class PustakawanController extends Controller
         $denda = DB::table('pengembalian')->where('id_pengembalian', $id)->first();
         abort_if(! $denda, 404);
 
+        if ((float) $denda->denda <= 0) {
+            return back()->with('info', 'Denda Rp 0 sudah dianggap lunas.');
+        }
+
         $baru = ($denda->status_bayar === 'Lunas') ? 'Belum Lunas' : 'Lunas';
-        DB::table('pengembalian')->where('id_pengembalian', $id)->update(['status_bayar' => $baru]);
+
+        DB::transaction(function () use ($id, $denda, $baru) {
+            DB::table('pengembalian')->where('id_pengembalian', $id)->update(['status_bayar' => $baru]);
+            $this->sinkronStatusPengembalian((int) $denda->id_peminjaman, (float) $denda->denda, $baru);
+        });
 
         return back()->with('success', 'Denda ditandai sebagai ' . $baru . '.');
+    }
+
+    /**
+     * Status peminjaman hanya dianggap selesai bila denda sudah lunas.
+     */
+    private function sinkronStatusPengembalian(int $idPeminjaman, float $denda, string $statusBayar): void
+    {
+        $status = ($denda <= 0 || $statusBayar === 'Lunas')
+            ? 'Dikembalikan'
+            : 'Menunggu Pembayaran';
+
+        DB::table('peminjaman')
+            ->where('id_peminjaman', $idPeminjaman)
+            ->update(['status' => $status]);
     }
 
     // =========================================================
@@ -1292,18 +1626,7 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
-        // Periode
-        $mulai = $request->filled('mulai')
-            ? Carbon::parse($request->input('mulai'))->startOfDay()
-            : now()->subDays(29)->startOfDay();
-
-        $selesai = $request->filled('selesai')
-            ? Carbon::parse($request->input('selesai'))->endOfDay()
-            : now()->endOfDay();
-
-        if ($mulai->gt($selesai)) {
-            $mulai = $selesai->copy()->startOfDay();
-        }
+        [$mulai, $selesai, $periode] = $this->rentangLaporan($request);
 
         // Tab: laporan Pustakawan hanya mencakup peminjaman & pengembalian.
         $tab = $request->input('tab');
@@ -1313,12 +1636,19 @@ class PustakawanController extends Controller
 
         $ringkasTransaksi = null;
 
+        // Rekap denda mengikuti tab dan periode laporan yang sedang dipilih.
+        $rekapDenda = $this->rekapDenda($tab, $mulai, $selesai);
+
         // Statistik
+        $stok = StokBuku::ringkasan();
+
         $stat = [
-            'buku'         => DB::table('buku')->count(),
+            'buku'         => $stok['total'],
+            'tersedia'     => $stok['tersedia'],
+            'dipinjam'     => $stok['dipinjam'],
             'anggota'      => DB::table('siswa')->count(),
-            'peminjaman'   => DB::table('peminjaman')->whereBetween('tanggal_pinjam', [$mulai, $selesai])->count(),
-            'pengembalian' => DB::table('pengembalian')->whereBetween('tanggal_kembali', [$mulai, $selesai])->count(),
+            'peminjaman'   => DB::table('peminjaman')->whereBetween('tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])->count(),
+            'pengembalian' => DB::table('pengembalian')->whereBetween('tanggal_kembali', [$mulai->toDateString(), $selesai->toDateString()])->count(),
         ];
 
         // Grafik batang peminjaman (7 / 30 hari)
@@ -1327,7 +1657,7 @@ class PustakawanController extends Controller
         $awalGrafik = $selesai->copy()->subDays($grafik - 1)->startOfDay();
         $counts = DB::table('peminjaman')
             ->selectRaw('DATE(tanggal_pinjam) as tgl, COUNT(*) as total')
-            ->whereBetween('tanggal_pinjam', [$awalGrafik, $selesai->copy()->endOfDay()])
+            ->whereBetween('tanggal_pinjam', [$awalGrafik->toDateString(), $selesai->toDateString()])
             ->groupBy('tgl')
             ->pluck('total', 'tgl');
 
@@ -1345,7 +1675,7 @@ class PustakawanController extends Controller
             ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
             ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
             ->leftJoin('kategori_buku as k', 'k.id_kategori', '=', 'b.id_kategori')
-            ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+            ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
             ->selectRaw("COALESCE(k.nama_kategori, 'Lainnya') as nama, SUM(dp.jumlah) as total")
             ->groupBy('nama')
             ->orderByDesc('total')
@@ -1362,10 +1692,11 @@ class PustakawanController extends Controller
         ])->all();
 
         // Subquery judul buku per peminjaman
+        $concatJudul = $this->concatJudulSql();
         $bukuSub = fn ($q) => $q->from('detail_peminjaman as dp')
             ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
             ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
-            ->selectRaw("GROUP_CONCAT(b.judul SEPARATOR ', ')");
+            ->selectRaw($concatJudul);
 
         // Tabel per tab
         if ($tab === 'pengembalian') {
@@ -1374,22 +1705,27 @@ class PustakawanController extends Controller
             $rows = DB::table('pengembalian as pg')
                 ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
-                ->select('pg.id_pengembalian', 's.nama_siswa', 'p.tanggal_pinjam', 'pg.tanggal_kembali')
+                ->select('pg.id_pengembalian', 's.nama_siswa', 'p.tanggal_pinjam', 'pg.tanggal_kembali', 'pg.denda', 'pg.status_bayar')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('pg.tanggal_kembali', [$mulai, $selesai])
+                ->whereBetween('pg.tanggal_kembali', [$mulai->toDateString(), $selesai->toDateString()])
                 ->orderByDesc('pg.tanggal_kembali')
                 ->orderByDesc('pg.id_pengembalian')
                 ->paginate(10)
                 ->withQueryString();
 
-            $rows->through(fn ($r) => [
-                'anggota' => $r->nama_siswa,
-                'buku'    => $r->buku ?: '-',
-                'tgl1'    => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
-                'tgl2'    => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
-                'status'  => 'Dikembalikan',
-                'kelas'   => 'badge-success',
-            ]);
+            $rows->through(function ($r) {
+                $belumLunas = (float) ($r->denda ?? 0) > 0
+                    && ($r->status_bayar ?: 'Belum Lunas') !== 'Lunas';
+
+                return [
+                    'anggota' => $r->nama_siswa,
+                    'buku'    => $r->buku ?: '-',
+                    'tgl1'    => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
+                    'tgl2'    => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
+                    'status'  => $belumLunas ? 'Menunggu Pembayaran' : 'Dikembalikan',
+                    'kelas'   => $belumLunas ? 'badge-warning' : 'badge-success',
+                ];
+            });
         } elseif ($tab === 'keterlambatan') {
             $kolom = ['Jatuh Tempo', 'Terlambat'];
             $today = now()->startOfDay();
@@ -1429,7 +1765,7 @@ class PustakawanController extends Controller
                 ->leftJoin('pengembalian as pg', 'pg.id_peminjaman', '=', 'p.id_peminjaman')
                 ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_pinjam', 'p.tanggal_jatuh_tempo', 'p.status', 'pg.tanggal_kembali', 'pg.denda', 'pg.status_bayar')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+                ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
                 ->orderByDesc('p.tanggal_pinjam')
                 ->orderByDesc('p.id_peminjaman')
                 ->paginate(10)
@@ -1459,11 +1795,11 @@ class PustakawanController extends Controller
                 'total' => $rows->total(),
                 'total_denda' => (float) DB::table('pengembalian as pg')
                     ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
-                    ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+                    ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
                     ->sum('pg.denda'),
                 'belum' => (float) DB::table('pengembalian as pg')
                     ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
-                    ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+                    ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
                     ->where('pg.status_bayar', 'Belum Lunas')
                     ->sum('pg.denda'),
             ];
@@ -1474,7 +1810,7 @@ class PustakawanController extends Controller
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_pinjam', 'p.tanggal_jatuh_tempo', 'p.status')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+                ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
                 ->orderByDesc('p.tanggal_pinjam')
                 ->orderByDesc('p.id_peminjaman')
                 ->paginate(10)
@@ -1491,19 +1827,451 @@ class PustakawanController extends Controller
         }
 
         return view('pustakawan.laporan.index', compact(
-            'tab', 'mulai', 'selesai', 'stat', 'grafik', 'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi'
+            'tab', 'mulai', 'selesai', 'periode', 'stat', 'grafik', 'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi', 'rekapDenda'
         ));
+    }
+
+    /**
+     * Halaman cetak laporan peminjaman / pengembalian.
+     * Memuat seluruh baris pada periode terpilih (tanpa pagination).
+     */
+    public function laporanCetak(Request $request)
+    {
+        $this->ensureAdmin();
+
+        [$mulai, $selesai, $periode] = $this->rentangLaporan($request);
+
+        $tab = $request->input('tab');
+        if (! in_array($tab, ['peminjaman', 'pengembalian'], true)) {
+            $tab = 'peminjaman';
+        }
+
+        [$kolom, $rows] = $this->dataLaporanCetak($tab, $mulai, $selesai);
+        $rekapDenda = $this->rekapDenda($tab, $mulai, $selesai);
+
+        return view('pustakawan.laporan.cetak', compact(
+            'tab', 'mulai', 'selesai', 'periode', 'kolom', 'rows', 'rekapDenda'
+        ));
+    }
+
+    /**
+     * Laporan denda keterlambatan sebagai halaman tersendiri.
+     */
+    public function laporanDenda(Request $request)
+    {
+        $this->ensureAdmin();
+
+        [$mulai, $selesai, $periode] = $this->rentangLaporan($request);
+        $filter = $this->filterLaporanDenda($request);
+
+        $rows = $this->queryLaporanDenda($mulai, $selesai, $filter)
+            ->orderByDesc('pg.tanggal_kembali')
+            ->orderByDesc('pg.id_pengembalian')
+            ->paginate(10)
+            ->withQueryString();
+
+        $rows->through(fn ($row, $index) => $this->barisLaporanDenda(
+            $row,
+            ($rows->firstItem() ?? 0) + $index
+        ));
+
+        $rekap = $this->rekapLaporanDenda($mulai, $selesai, $filter);
+        $tarif = Pengaturan::int('denda_per_hari', 500);
+
+        $kelasList = DB::table('siswa')
+            ->select('kelas')
+            ->whereNotNull('kelas')
+            ->where('kelas', '!=', '')
+            ->distinct()
+            ->orderBy('kelas')
+            ->pluck('kelas');
+
+        return view('pustakawan.laporan.denda', compact(
+            'mulai', 'selesai', 'periode', 'filter', 'rows', 'rekap', 'tarif', 'kelasList'
+        ));
+    }
+
+    /**
+     * Unduh laporan denda sebagai PDF A4.
+     */
+    public function laporanDendaPdf(Request $request)
+    {
+        $this->ensureAdmin();
+
+        [$mulai, $selesai, $periode] = $this->rentangLaporan($request);
+        $filter = $this->filterLaporanDenda($request);
+
+        $rows = $this->queryLaporanDenda($mulai, $selesai, $filter)
+            ->orderBy('pg.tanggal_kembali')
+            ->orderBy('pg.id_pengembalian')
+            ->get()
+            ->values()
+            ->map(fn ($row, $index) => $this->barisLaporanDenda($row, $index + 1));
+
+        $rekap = $this->rekapLaporanDenda($mulai, $selesai, $filter);
+        $tarif = Pengaturan::int('denda_per_hari', 500);
+        $dicetakPada = now()->translatedFormat('d F Y, H:i');
+        $petugas = auth()->user()->name ?: (auth()->user()->username ?: 'Pustakawan');
+
+        $pdf = Pdf::loadView('pustakawan.laporan.denda-pdf', compact(
+            'mulai', 'selesai', 'periode', 'filter', 'rows', 'rekap', 'tarif', 'dicetakPada', 'petugas'
+        ))->setPaper('a4', 'portrait');
+
+        $namaFile = 'laporan-denda-' . $mulai->format('Ymd') . '-' . $selesai->format('Ymd') . '.pdf';
+
+        return $pdf->download($namaFile);
+    }
+
+    /**
+     * Filter laporan denda yang diizinkan.
+     *
+     * @return array{q:string,status:string,kelas:string,kategori:string}
+     */
+    private function filterLaporanDenda(Request $request): array
+    {
+        $status = (string) $request->input('status', '');
+        $kategori = (string) $request->input('kategori', '');
+
+        return [
+            'q'        => trim((string) $request->input('q', '')),
+            'status'   => in_array($status, ['Lunas', 'Belum Lunas'], true) ? $status : '',
+            'kelas'    => trim((string) $request->input('kelas', '')),
+            'kategori' => in_array($kategori, ['Terlambat', 'Tepat Waktu'], true) ? $kategori : '',
+        ];
+    }
+
+    /**
+     * Query dasar laporan denda (hanya pengembalian yang benar-benar berdenda).
+     */
+    private function baseLaporanDenda(Carbon $mulai, Carbon $selesai, array $filter)
+    {
+        $query = DB::table('pengembalian as pg')
+            ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
+            ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
+            ->whereBetween('pg.tanggal_kembali', [$mulai->toDateString(), $selesai->toDateString()])
+            ->where('pg.denda', '>', 0);
+
+        if ($filter['q'] !== '') {
+            $kata = $filter['q'];
+
+            $query->where(function ($where) use ($kata) {
+                $where->where('s.nama_siswa', 'like', "%{$kata}%")
+                    ->orWhere('s.nis', 'like', "%{$kata}%")
+                    ->orWhere('s.kelas', 'like', "%{$kata}%")
+                    ->orWhereExists(function ($sub) use ($kata) {
+                        $sub->select(DB::raw(1))
+                            ->from('detail_peminjaman as dp')
+                            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                            ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
+                            ->where('b.judul', 'like', "%{$kata}%");
+                    });
+            });
+        }
+
+        if ($filter['status'] !== '') {
+            $query->where('pg.status_bayar', $filter['status']);
+        }
+
+        if ($filter['kelas'] !== '') {
+            $query->where('s.kelas', $filter['kelas']);
+        }
+
+        if ($filter['kategori'] !== '') {
+            $query->where('pg.kategori', $filter['kategori']);
+        }
+
+        return $query;
+    }
+
+    /**
+     * Query tabel laporan denda beserta judul buku.
+     */
+    private function queryLaporanDenda(Carbon $mulai, Carbon $selesai, array $filter)
+    {
+        $concatJudul = $this->concatJudulSql();
+
+        return $this->baseLaporanDenda($mulai, $selesai, $filter)
+            ->select(
+                'pg.id_pengembalian as id',
+                's.nama_siswa',
+                's.nis',
+                's.kelas',
+                'p.tanggal_pinjam',
+                'p.tanggal_jatuh_tempo',
+                'pg.tanggal_kembali',
+                'pg.denda',
+                'pg.kategori',
+                'pg.status_bayar'
+            )
+            ->selectSub(function ($sub) use ($concatJudul) {
+                $sub->from('detail_peminjaman as dp')
+                    ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+                    ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
+                    ->selectRaw($concatJudul);
+            }, 'buku');
+    }
+
+    /**
+     * Rekap denda lunas/belum lunas sesuai filter aktif.
+     *
+     * @return array{jumlah_transaksi:int,jumlah_lunas:int,jumlah_belum:int,total_denda:float,lunas:float,belum:float}
+     */
+    private function rekapLaporanDenda(Carbon $mulai, Carbon $selesai, array $filter): array
+    {
+        $ringkas = $this->baseLaporanDenda($mulai, $selesai, $filter)
+            ->selectRaw('COUNT(*) as jumlah_transaksi')
+            ->selectRaw('COALESCE(SUM(pg.denda), 0) as total_denda')
+            ->selectRaw("COALESCE(SUM(CASE WHEN pg.status_bayar = 'Lunas' THEN pg.denda ELSE 0 END), 0) as lunas")
+            ->selectRaw("COALESCE(SUM(CASE WHEN pg.status_bayar = 'Lunas' THEN 1 ELSE 0 END), 0) as jumlah_lunas")
+            ->first();
+
+        $total = (float) ($ringkas->total_denda ?? 0);
+        $lunas = (float) ($ringkas->lunas ?? 0);
+        $jumlah = (int) ($ringkas->jumlah_transaksi ?? 0);
+        $jumlahLunas = (int) ($ringkas->jumlah_lunas ?? 0);
+
+        return [
+            'jumlah_transaksi' => $jumlah,
+            'jumlah_lunas'     => $jumlahLunas,
+            'jumlah_belum'     => max(0, $jumlah - $jumlahLunas),
+            'total_denda'      => $total,
+            'lunas'            => $lunas,
+            'belum'            => max(0, $total - $lunas),
+        ];
+    }
+
+    /**
+     * Bentuk satu baris laporan denda.
+     *
+     * @return array<string, mixed>
+     */
+    private function barisLaporanDenda(object $row, int $nomor = 0): array
+    {
+        $jatuhTempo = Carbon::parse($row->tanggal_jatuh_tempo)->startOfDay();
+        $kembali = Carbon::parse($row->tanggal_kembali)->startOfDay();
+        $hari = max(0, (int) $jatuhTempo->diffInDays($kembali, false));
+        $statusBayar = $row->status_bayar ?: 'Belum Lunas';
+
+        if ((float) $row->denda <= 0) {
+            $statusBayar = 'Lunas';
+        }
+
+        return [
+            'no'              => $nomor,
+            'id'              => (int) $row->id,
+            'nama'            => $row->nama_siswa,
+            'nis'             => $row->nis,
+            'kelas'           => $row->kelas ?: '-',
+            'buku'            => $row->buku ?: '-',
+            'tanggal_pinjam'  => Carbon::parse($row->tanggal_pinjam)->translatedFormat('d M Y'),
+            'jatuh_tempo'     => $jatuhTempo->translatedFormat('d M Y'),
+            'tanggal_kembali' => $kembali->translatedFormat('d M Y'),
+            'hari'            => $hari,
+            'denda'           => (float) $row->denda,
+            'kategori'        => $row->kategori ?: ($hari > 0 ? 'Terlambat' : 'Tepat Waktu'),
+            'status_bayar'    => $statusBayar,
+        ];
+    }
+
+    /**
+     * Menentukan rentang tanggal laporan berdasarkan pilihan periode.
+     *
+     * @return array{0: Carbon, 1: Carbon, 2: string}
+     */
+    private function rentangLaporan(Request $request): array
+    {
+        Carbon::setLocale('id');
+
+        $periode = $request->input('periode', 'kustom');
+        $hariIni = Carbon::today();
+
+        if ($periode === 'harian') {
+            return [$hariIni->copy()->startOfDay(), $hariIni->copy()->endOfDay(), 'harian'];
+        }
+
+        if ($periode === 'bulanan') {
+            return [$hariIni->copy()->startOfMonth(), $hariIni->copy()->endOfMonth(), 'bulanan'];
+        }
+
+        if ($periode === 'tahunan') {
+            return [$hariIni->copy()->startOfYear(), $hariIni->copy()->endOfYear(), 'tahunan'];
+        }
+
+        $mulai = $request->filled('mulai')
+            ? Carbon::parse($request->input('mulai'))->startOfDay()
+            : $hariIni->copy()->subDays(29)->startOfDay();
+
+        $selesai = $request->filled('selesai')
+            ? Carbon::parse($request->input('selesai'))->endOfDay()
+            : $hariIni->copy()->endOfDay();
+
+        if ($mulai->gt($selesai)) {
+            $mulai = $selesai->copy()->startOfDay();
+        }
+
+        return [$mulai, $selesai, 'kustom'];
+    }
+
+    /**
+     * Data tabel untuk halaman cetak (tanpa pagination).
+     *
+     * @return array{0: array<int, string>, 1: \Illuminate\Support\Collection<int, array<string, mixed>>}
+     */
+    private function dataLaporanCetak(string $tab, Carbon $mulai, Carbon $selesai): array
+    {
+        $concatJudul = $this->concatJudulSql();
+        $bukuSub = fn ($q) => $q->from('detail_peminjaman as dp')
+            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+            ->whereColumn('dp.id_peminjaman', 'p.id_peminjaman')
+            ->selectRaw($concatJudul);
+
+        if ($tab === 'pengembalian') {
+            $kolom = ['Tanggal Pinjam', 'Tanggal Kembali'];
+
+            $rows = DB::table('pengembalian as pg')
+                ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
+                ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
+                ->select('pg.id_pengembalian', 's.nama_siswa', 'p.tanggal_pinjam', 'pg.tanggal_kembali', 'pg.denda', 'pg.status_bayar')
+                ->selectSub($bukuSub, 'buku')
+                ->whereBetween('pg.tanggal_kembali', [$mulai->toDateString(), $selesai->toDateString()])
+                ->orderBy('pg.tanggal_kembali')
+                ->orderBy('pg.id_pengembalian')
+                ->get()
+                ->map(function ($r, $i) {
+                    $belumLunas = (float) ($r->denda ?? 0) > 0
+                        && ($r->status_bayar ?: 'Belum Lunas') !== 'Lunas';
+
+                    return [
+                        'no'           => $i + 1,
+                        'anggota'      => $r->nama_siswa,
+                        'buku'         => $r->buku ?: '-',
+                        'tgl1'         => Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y'),
+                        'tgl2'         => Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y'),
+                        'status'       => $belumLunas ? 'Menunggu Pembayaran' : 'Dikembalikan',
+                        'denda'        => (float) ($r->denda ?? 0),
+                        'status_bayar' => $r->status_bayar ?: 'Belum Lunas',
+                    ];
+                });
+
+            return [$kolom, $rows];
+        }
+
+        $kolom = ['Tanggal Pinjam', 'Jatuh Tempo'];
+
+        $rows = DB::table('peminjaman as p')
+            ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
+            ->leftJoin('pengembalian as pg', 'pg.id_peminjaman', '=', 'p.id_peminjaman')
+            ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_pinjam', 'p.tanggal_jatuh_tempo', 'p.status', 'pg.tanggal_kembali', 'pg.denda', 'pg.status_bayar')
+            ->selectSub($bukuSub, 'buku')
+            ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
+            ->orderBy('p.tanggal_pinjam')
+            ->orderBy('p.id_peminjaman')
+            ->get()
+            ->map(fn ($r, $i) => [
+                'no'           => $i + 1,
+                'anggota'      => $r->nama_siswa,
+                'buku'         => $r->buku ?: '-',
+                'tgl1'         => Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y'),
+                'tgl2'         => Carbon::parse($r->tanggal_jatuh_tempo)->translatedFormat('d M Y'),
+                'status'       => $this->statusLaporan($r),
+                'denda'        => (float) ($r->denda ?? 0),
+                'status_bayar' => $r->status_bayar ?: 'Belum Lunas',
+            ]);
+
+        return [$kolom, $rows];
+    }
+
+    /**
+     * Rekap denda pada periode laporan.
+     *
+     * Untuk tab peminjaman, denda dihitung dari transaksi yang tanggal
+     * pinjamnya masuk periode. Untuk tab pengembalian, dihitung dari
+     * transaksi yang tanggal kembalinya masuk periode.
+     *
+     * @return array{total_transaksi:int,total_denda:float,lunas:float,belum:float,jumlah_berdenda:int}
+     */
+    private function rekapDenda(string $tab, Carbon $mulai, Carbon $selesai): array
+    {
+        $awal = $mulai->toDateString();
+        $akhir = $selesai->toDateString();
+
+        // Jumlah transaksi mengikuti tab yang dipilih.
+        if ($tab === 'pengembalian') {
+            $totalTransaksi = DB::table('pengembalian')
+                ->whereBetween('tanggal_kembali', [$awal, $akhir])
+                ->count();
+        } else {
+            $totalTransaksi = DB::table('peminjaman')
+                ->whereBetween('tanggal_pinjam', [$awal, $akhir])
+                ->count();
+        }
+
+        // Nominal denda selalu mengikuti tanggal pengembalian, yaitu saat denda terjadi.
+        // Dengan begitu ringkasan Total Denda, Denda Lunas, dan Denda Belum Lunas
+        // tetap terisi otomatis pada tab peminjaman, termasuk untuk peminjaman
+        // dari periode sebelumnya yang baru dikembalikan pada periode laporan.
+        $query = DB::table('pengembalian as pg')
+            ->whereBetween('pg.tanggal_kembali', [$awal, $akhir]);
+
+        $ringkas = $query
+            ->selectRaw('COALESCE(SUM(pg.denda), 0) as total_denda')
+            ->selectRaw("COALESCE(SUM(CASE WHEN pg.status_bayar = 'Lunas' THEN pg.denda ELSE 0 END), 0) as lunas")
+            ->selectRaw('COALESCE(SUM(CASE WHEN pg.denda > 0 THEN 1 ELSE 0 END), 0) as jumlah_berdenda')
+            ->first();
+
+        $totalDenda = (float) ($ringkas->total_denda ?? 0);
+        $lunas = (float) ($ringkas->lunas ?? 0);
+
+        return [
+            'total_transaksi' => $totalTransaksi,
+            'total_denda'     => $totalDenda,
+            'lunas'           => $lunas,
+            'belum'           => max(0, $totalDenda - $lunas),
+            'jumlah_berdenda' => (int) ($ringkas->jumlah_berdenda ?? 0),
+        ];
+    }
+
+    /**
+     * Status baris laporan peminjaman pada halaman cetak.
+     */
+    private function statusLaporan(object $row): string
+    {
+        if (! empty($row->tanggal_kembali)) {
+            $belumLunas = (float) ($row->denda ?? 0) > 0
+                && ($row->status_bayar ?? 'Belum Lunas') !== 'Lunas';
+
+            return $belumLunas ? 'Menunggu Pembayaran' : 'Dikembalikan';
+        }
+
+        if (($row->status ?? null) === 'Dipinjam'
+            && ! empty($row->tanggal_jatuh_tempo)
+            && Carbon::parse($row->tanggal_jatuh_tempo)->startOfDay()->lt(now()->startOfDay())) {
+            return 'Terlambat';
+        }
+
+        return $row->status ?: '-';
     }
 
     private function statusBadgeClass(?string $status): string
     {
         return match ($status) {
-            'Dikembalikan' => 'badge-success',
-            'Dipinjam'     => 'badge-info',
-            'Menunggu'     => 'badge-warning',
-            'Ditolak'      => 'badge-danger',
-            'Terlambat'    => 'badge-danger',
-            default        => 'badge-secondary',
+            'Dikembalikan'        => 'badge-success',
+            'Dipinjam'            => 'badge-info',
+            'Menunggu'            => 'badge-warning',
+            'Menunggu Pembayaran' => 'badge-warning',
+            'Ditolak'             => 'badge-danger',
+            'Terlambat'           => 'badge-danger',
+            default               => 'badge-secondary',
         };
+    }
+
+    /**
+     * SQL penggabung judul buku yang kompatibel dengan MySQL dan SQLite (tes).
+     */
+    private function concatJudulSql(): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "GROUP_CONCAT(b.judul, ', ')"
+            : "GROUP_CONCAT(b.judul SEPARATOR ', ')";
     }
 }

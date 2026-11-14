@@ -28,11 +28,18 @@ class PengajuanController extends Controller
 
     private function daftarPengajuan(Request $request, bool $hanyaMenunggu)
     {
+        // Daftar buku yang dapat diajukan siswa dipisahkan per kategori.
+        // Hanya kategori Pelajaran dan Cerita yang ditampilkan agar buku
+        // pendamping (Pelajaran Lain) tidak tercampur di halaman pengajuan.
         $bukuList = DB::table('buku')
-            ->where('stok', '>', 0)
-            ->selectRaw("id_buku as id, judul, pengarang, cover, 'tersedia' as status")
-            ->orderByDesc('created_at')
-            ->get();
+            ->join('kategori_buku', 'kategori_buku.id_kategori', '=', 'buku.id_kategori')
+            ->whereIn('kategori_buku.nama_kategori', ['Pelajaran', 'Cerita'])
+            ->where('buku.stok', '>', 0)
+            ->selectRaw("buku.id_buku as id, buku.judul, buku.pengarang, buku.cover, kategori_buku.nama_kategori as kategori, 'tersedia' as status")
+            ->orderByRaw("CASE kategori_buku.nama_kategori WHEN 'Pelajaran' THEN 1 WHEN 'Cerita' THEN 2 ELSE 3 END")
+            ->orderBy('buku.judul')
+            ->get()
+            ->groupBy('kategori');
 
         $query = DB::table('peminjaman')
             ->join('siswa', 'siswa.id_siswa', '=', 'peminjaman.id_siswa')

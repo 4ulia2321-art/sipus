@@ -86,10 +86,6 @@
             <a href="{{ route('pustakawan.peminjaman.show', $pengembalian->id_peminjaman) }}" class="btn-outline">
                 <i class="bi bi-file-earmark-text"></i> Lihat Peminjaman
             </a>
-            <a href="{{ route('pustakawan.pengembalian.edit', $pengembalian->id_pengembalian) }}" class="btn-primary">
-                <i class="bi bi-pencil-square"></i>
-                {{ $pengembalian->terlambat ? 'Edit Keterlambatan' : 'Edit Pengembalian' }}
-            </a>
         </div>
     </section>
 @endsection

@@ -23,6 +23,16 @@
         </div>
     </div>
 
+    @if (session('success'))
+        <div class="alert alert-success">{{ session('success') }}</div>
+    @endif
+    @if (session('info'))
+        <div class="alert alert-info">{{ session('info') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-error">{{ session('error') }}</div>
+    @endif
+
     {{-- Pencarian & filter --}}
     <form action="{{ route('riwayat') }}" method="GET" class="history-filter" data-live-form>
         <div class="history-search">
@@ -32,7 +42,7 @@
 
         <select name="status" onchange="this.form.submit()">
             <option value="">Semua Status</option>
-            @foreach (['dipinjam' => 'Dipinjam', 'dikembalikan' => 'Dikembalikan', 'terlambat' => 'Terlambat'] as $value => $label)
+            @foreach (['dipinjam' => 'Dipinjam', 'terlambat' => 'Terlambat', 'menunggu-pengembalian' => 'Menunggu Pengembalian', 'menunggu-pembayaran' => 'Menunggu Pembayaran', 'dikembalikan' => 'Dikembalikan'] as $value => $label)
                 <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
             @endforeach
         </select>
@@ -88,9 +98,20 @@
                 <td>{{ $row->tanggal_pinjam->translatedFormat('d M Y') }}</td>
                 <td>{{ $row->jatuh_tempo->translatedFormat('d M Y') }}</td>
                 <td>{{ $row->tanggal_kembali?->translatedFormat('d M Y') ?? '-' }}</td>
-                <td><span class="status-badge status-{{ $row->status }}">{{ ucfirst($row->status) }}</span></td>
                 <td>
-                    <a href="{{ route('buku.show', $row->buku_id) }}" class="btn-detail-outline">
+                    <div class="status-stack">
+                        <span class="status-badge status-{{ $row->status }}">{{ $row->status_label }}</span>
+                        @if ($row->perpanjangan_status === 'Menunggu')
+                            <span class="status-badge status-menunggu">Perpanjangan Menunggu</span>
+                        @elseif ($row->perpanjangan_status === 'Disetujui' && $row->status === 'dipinjam')
+                            <span class="status-badge status-dikembalikan">Diperpanjang</span>
+                        @elseif ($row->perpanjangan_status === 'Ditolak' && $row->status === 'dipinjam')
+                            <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
+                        @endif
+                    </div>
+                </td>
+                <td>
+                    <a href="{{ route('riwayat.show', $row->id_peminjaman) }}" class="btn-detail-outline">
                         <i class="bi bi-eye"></i> Detail
                     </a>
                 </td>
@@ -132,8 +153,17 @@
                     <div><dt><i class="bi bi-calendar3"></i> Kembali</dt><dd>{{ $row->tanggal_kembali?->translatedFormat('d M Y') ?? '-' }}</dd></div>
                 </dl>
                 <div class="history-card-bottom">
-                    <span class="status-badge status-{{ $row->status }}">{{ ucfirst($row->status) }}</span>
-                    <a href="{{ route('buku.show', $row->buku_id) }}" class="btn-detail-outline">
+                    <div class="status-stack">
+                        <span class="status-badge status-{{ $row->status }}">{{ $row->status_label }}</span>
+                        @if ($row->perpanjangan_status === 'Menunggu')
+                            <span class="status-badge status-menunggu">Perpanjangan Menunggu</span>
+                        @elseif ($row->perpanjangan_status === 'Disetujui' && $row->status === 'dipinjam')
+                            <span class="status-badge status-dikembalikan">Diperpanjang</span>
+                        @elseif ($row->perpanjangan_status === 'Ditolak' && $row->status === 'dipinjam')
+                            <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
+                        @endif
+                    </div>
+                    <a href="{{ route('riwayat.show', $row->id_peminjaman) }}" class="btn-detail-outline">
                         <i class="bi bi-eye"></i> Detail
                     </a>
                 </div>

@@ -33,9 +33,8 @@ class ContohDataSeeder extends Seeder
         // 1. Kategori buku
         $kategoriIds = [];
         foreach ([
-            ['nama_kategori' => 'Pelajaran',      'keterangan' => 'Buku paket SMP (Kurikulum Merdeka)'],
-            ['nama_kategori' => 'Cerita',         'keterangan' => 'Buku cerita, novel, dan dongeng anak'],
-            ['nama_kategori' => 'Pelajaran Lain', 'keterangan' => 'Buku pendamping mata pelajaran (PJOK, Seni Budaya, Prakarya, Bahasa Jawa)'],
+            ['nama_kategori' => 'Pelajaran', 'keterangan' => 'Buku paket SMP (Kurikulum Merdeka)'],
+            ['nama_kategori' => 'Cerita',    'keterangan' => 'Buku cerita, novel, dan dongeng anak'],
         ] as $k) {
             $kategoriIds[$k['nama_kategori']] = DB::table('kategori_buku')->insertGetId($k);
         }
@@ -87,8 +86,8 @@ class ContohDataSeeder extends Seeder
 
         // 4. Akun pengelola: Admin & Pustakawan
         foreach ([
-            ['name' => 'Administrator SIPUS',     'username' => 'admin67@sipus.sch.id',      'password' => '87654321', 'role' => 'Admin'],
-            ['name' => 'Rina Kusuma, S.IP.',      'username' => 'pustakawan54@sipus.sch.id', 'password' => '34567890', 'role' => 'Pustakawan'],
+            ['name' => 'Wulan Safitri',           'username' => 'admin67@sipus.sch.id',      'password' => '87654321', 'role' => 'Admin'],
+            ['name' => 'July',                    'username' => 'pustakawan54@sipus.sch.id', 'password' => '34567890', 'role' => 'Pustakawan'],
         ] as $a) {
             DB::table('t_user')->insert([
                 'name'     => $a['name'],
@@ -279,29 +278,6 @@ class ContohDataSeeder extends Seeder
                     'rak'       => 'R-01',
                 ];
             }
-        }
-
-        // Buku pendamping (tetap disimpan agar riwayat peminjaman lama tidak hilang).
-        foreach ([
-            ['Pendidikan Jasmani, Olahraga, dan Kesehatan', 'Physical Education', '#0e7490', '#67e8f9', 'PJOK'],
-            ['Seni Budaya', 'Arts and Culture', '#be185d', '#f9a8d4', 'SENI'],
-            ['Prakarya', 'Crafts', '#a16207', '#fde68a', 'PRK'],
-            ['Bahasa Jawa', 'Javanese Language', '#78350f', '#fcd34d', 'BJW'],
-        ] as $p) {
-            $buku[] = [
-                'kategori'  => 'Pelajaran Lain',
-                'judul'     => $p[0] . ' Kelas VII',
-                'sampul'    => $p[0],
-                'sub'       => $p[1],
-                'kelas'     => 'VII',
-                'warna'     => $p[2],
-                'aksen'     => $p[3],
-                'awalan'    => $p[4],
-                'pengarang' => 'Tim Penyusun',
-                'penerbit'  => 'Kemendikbudristek',
-                'tahun'     => 2022,
-                'rak'       => 'R-01',
-            ];
         }
 
         // judul, pengarang, penerbit, tahun, warna, aksen

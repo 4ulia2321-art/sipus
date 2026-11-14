@@ -8,6 +8,14 @@
     margin-bottom: 18px;
 }
 
+.page-head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
 .page-title h2 {
     margin: 0;
     font-size: 20px;

@@ -19,13 +19,13 @@
             <a href="{{ route('pustakawan.persetujuan') }}" class="{{ request()->routeIs('pustakawan.persetujuan*') ? 'active' : '' }}">
                 <i class="bi bi-check2-square"></i> <span>Persetujuan Peminjaman</span>
             </a>
-            <a href="{{ route('pustakawan.peminjaman') }}" class="{{ request()->routeIs('pustakawan.peminjaman*') && (request()->routeIs('pustakawan.keterlambatan') === false) && request('status') !== 'terlambat' && request('asal') !== 'keterlambatan' ? 'active' : '' }}">
+            <a href="{{ route('pustakawan.peminjaman') }}" class="{{ request()->routeIs('pustakawan.peminjaman*') && (request()->routeIs('pustakawan.keterlambatan') === false) && (request('status') !== 'terlambat' || request('tab') === 'riwayat') && request('asal') !== 'keterlambatan' ? 'active' : '' }}">
                 <i class="bi bi-file-earmark-plus"></i> <span>Transaksi Peminjaman</span>
             </a>
             <a href="{{ route('pustakawan.pengembalian') }}" class="{{ request()->routeIs('pustakawan.pengembalian*') ? 'active' : '' }}">
                 <i class="bi bi-clock-history"></i> <span>Pengembalian</span>
             </a>
-            <a href="{{ route('pustakawan.keterlambatan') }}" class="{{ request()->routeIs('pustakawan.keterlambatan*') || (request()->routeIs('pustakawan.peminjaman*') && (request('status') === 'terlambat' || request('asal') === 'keterlambatan')) ? 'active' : '' }}">
+            <a href="{{ route('pustakawan.keterlambatan') }}" class="{{ request()->routeIs('pustakawan.keterlambatan*') || (request()->routeIs('pustakawan.peminjaman*') && ((request('status') === 'terlambat' && request('tab') !== 'riwayat') || request('asal') === 'keterlambatan')) ? 'active' : '' }}">
                 <i class="bi bi-exclamation-triangle"></i> <span>Keterlambatan</span>
             </a>
             <a href="{{ route('pustakawan.denda') }}" class="{{ request()->routeIs('pustakawan.denda*') ? 'active' : '' }}">

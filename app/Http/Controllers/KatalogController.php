@@ -14,8 +14,7 @@ class KatalogController extends Controller
      */
     public function index()
     {
-        // Katalog siswa menampilkan buku paket (Pelajaran) dan buku cerita.
-        // Kategori "Pelajaran Lain" tetap ada di database, tetapi tidak ditampilkan di sini.
+        // Katalog siswa hanya menampilkan buku paket (Pelajaran) dan buku cerita.
         $urutanKategori = ['Pelajaran' => 1, 'Cerita' => 2];
 
         $kategoriCards = KategoriBuku::whereIn('nama_kategori', array_keys($urutanKategori))
@@ -172,7 +171,25 @@ class KatalogController extends Controller
 
         abort_if(! $buku, 404);
 
-        return view('katalog.show', compact('buku'));
+        // Siswa yang sedang meminjam buku ini dapat mengajukan pengembalian
+        // langsung dari halaman detail katalog.
+        $peminjamanAktif = null;
+
+        if ((auth()->user()->role ?? null) === 'Siswa') {
+            $peminjamanAktif = DB::table('peminjaman as p')
+                ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
+                ->join('detail_peminjaman as dp', 'dp.id_peminjaman', '=', 'p.id_peminjaman')
+                ->leftJoin('pengembalian as pg', 'pg.id_peminjaman', '=', 'p.id_peminjaman')
+                ->where('s.id_user', auth()->id())
+                ->where('dp.id_buku', $id)
+                ->where('p.status', 'Dipinjam')
+                ->whereNull('pg.id_peminjaman')
+                ->select('p.id_peminjaman', 'p.pengajuan_kembali_at')
+                ->orderByDesc('p.id_peminjaman')
+                ->first();
+        }
+
+        return view('katalog.show', compact('buku', 'peminjamanAktif'));
     }
 
     /**

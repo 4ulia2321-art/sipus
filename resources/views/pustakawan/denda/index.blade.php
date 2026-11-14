@@ -15,7 +15,7 @@
     @endphp
 
     {{-- Header halaman --}}
-    <div class="page-head">
+    <div class="page-head page-head-row">
         <div class="page-title">
             <i class="bi bi-cash-coin"></i>
             <div>
@@ -23,6 +23,9 @@
                 <p>Pantau dan kelola denda keterlambatan pengembalian buku.</p>
             </div>
         </div>
+        <a href="{{ route('pustakawan.laporan.denda') }}" class="btn btn-primary">
+            <i class="bi bi-file-earmark-bar-graph"></i> Laporan Denda
+        </a>
     </div>
 
     @if (session('success'))

@@ -56,11 +56,20 @@
             </div>
         </div>
 
-        <form action="{{ route('pengembalian.store', $buku->id) }}" method="POST" class="detail-action">
-            @csrf
-            <button type="submit" class="btn-primary">
-                <i class="bi bi-send"></i> Ajukan pengembalian
-            </button>
-        </form>
+        @if ($peminjamanAktif)
+            @if ($peminjamanAktif->pengajuan_kembali_at)
+                <div class="alert alert-info">
+                    <i class="bi bi-hourglass-split"></i>
+                    Pengajuan pengembalian buku ini sedang menunggu diproses pustakawan.
+                </div>
+            @else
+                <form action="{{ route('riwayat.pengembalian', $peminjamanAktif->id_peminjaman) }}" method="POST" class="detail-action">
+                    @csrf
+                    <button type="submit" class="btn-primary">
+                        <i class="bi bi-send"></i> Ajukan pengembalian
+                    </button>
+                </form>
+            @endif
+        @endif
     </section>
 @endsection

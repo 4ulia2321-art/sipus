@@ -27,6 +27,24 @@
 
     {{-- Pencarian & filter --}}
     <form action="{{ ($khususTerlambat ?? false) ? route('pustakawan.keterlambatan') : route('pustakawan.peminjaman') }}" method="GET" class="filter-card" data-live-form>
+        @unless ($khususTerlambat ?? false)
+            <div class="loan-tabs" role="tablist" aria-label="Filter transaksi peminjaman">
+                <a href="{{ route('pustakawan.peminjaman', ['tab' => 'aktif']) }}"
+                   class="loan-tab {{ ($tab ?? 'aktif') === 'aktif' ? 'active' : '' }}">
+                    <i class="bi bi-journal-arrow-up"></i>
+                    Transaksi Aktif
+                    <span class="loan-tab-count">{{ $totalAktif ?? 0 }}</span>
+                </a>
+                <a href="{{ route('pustakawan.peminjaman', ['tab' => 'riwayat']) }}"
+                   class="loan-tab {{ ($tab ?? 'aktif') === 'riwayat' ? 'active' : '' }}">
+                    <i class="bi bi-clock-history"></i>
+                    Riwayat Transaksi
+                    <span class="loan-tab-count">{{ $totalRiwayat ?? 0 }}</span>
+                </a>
+            </div>
+            <input type="hidden" name="tab" value="{{ $tab ?? 'aktif' }}">
+        @endunless
+
         <div class="search-box">
             <i class="bi bi-search"></i>
             <input type="text" name="q" value="{{ request('q') }}" placeholder="Cari nama anggota / judul buku...">
@@ -37,15 +55,21 @@
                 <span>Status</span>
                 <select name="status" onchange="this.form.submit()">
                     <option value="">Semua Status</option>
-                    @foreach (['dipinjam' => 'Dipinjam', 'dikembalikan' => 'Dikembalikan', 'terlambat' => 'Terlambat'] as $value => $label)
-                        <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
-                    @endforeach
+                    @if (($tab ?? 'aktif') === 'riwayat')
+                        @foreach (['tepat-waktu' => 'Tepat Waktu', 'terlambat' => 'Terlambat'] as $value => $label)
+                            <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                        @endforeach
+                    @else
+                        @foreach (['dipinjam' => 'Dipinjam', 'terlambat' => 'Terlambat', 'menunggu-pengembalian' => 'Menunggu Pengembalian'] as $value => $label)
+                            <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                        @endforeach
+                    @endif
                 </select>
             </label>
         @endunless
 
         <label class="select-field">
-            <span>Tanggal</span>
+            <span>{{ ($tab ?? 'aktif') === 'riwayat' && ! ($khususTerlambat ?? false) ? 'Tanggal Kembali' : 'Tanggal' }}</span>
             <select name="tanggal" onchange="this.form.submit()">
                 <option value="">Semua Tanggal</option>
                 @foreach (['hari-ini' => 'Hari ini', '7-hari' => '7 hari terakhir', '30-hari' => '30 hari terakhir', 'bulan-ini' => 'Bulan ini'] as $value => $label)
@@ -54,7 +78,7 @@
             </select>
         </label>
 
-        <a href="{{ ($khususTerlambat ?? false) ? route('pustakawan.keterlambatan') : route('pustakawan.peminjaman') }}" class="btn-reset-soft">
+        <a href="{{ ($khususTerlambat ?? false) ? route('pustakawan.keterlambatan') : route('pustakawan.peminjaman', ['tab' => $tab ?? 'aktif']) }}" class="btn-reset-soft">
             <i class="bi bi-arrow-counterclockwise"></i> Reset
         </a>
 
@@ -76,7 +100,13 @@
                         <th>Judul Buku</th>
                         <th>Tanggal Pinjam</th>
                         <th>Jatuh Tempo</th>
+                        @if (($tab ?? 'aktif') === 'riwayat')
+                            <th>Tanggal Kembali</th>
+                        @endif
                         <th>Status</th>
+                        @if (($tab ?? 'aktif') === 'riwayat')
+                            <th>Denda</th>
+                        @endif
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -100,23 +130,74 @@
                             </td>
                             <td>{{ $row->tanggal_pinjam->translatedFormat('d M Y') }}</td>
                             <td>{{ $row->jatuh_tempo->translatedFormat('d M Y') }}</td>
-                            <td><span class="status-badge status-{{ $row->status }}">{{ ucfirst($row->status) }}</span></td>
+                            @if (($tab ?? 'aktif') === 'riwayat')
+                                <td>{{ $row->tanggal_kembali ? $row->tanggal_kembali->translatedFormat('d M Y') : '-' }}</td>
+                            @endif
+                            <td>
+                                <div class="status-stack">
+                                    <span class="status-badge status-{{ $row->status }}">{{ ucwords(str_replace('-', ' ', $row->status)) }}</span>
+                                    @if (($tab ?? 'aktif') === 'riwayat')
+                                        <span class="status-badge {{ $row->terlambat ? 'status-terlambat' : 'status-dikembalikan' }}">
+                                            {{ $row->terlambat ? 'Terlambat' : 'Tepat Waktu' }}
+                                        </span>
+                                    @endif
+                                    @if ($row->perpanjangan_status === 'Menunggu')
+                                        <span class="status-badge status-menunggu">Perpanjangan Menunggu</span>
+                                    @elseif ($row->perpanjangan_status === 'Disetujui')
+                                        <span class="status-badge status-dikembalikan">Diperpanjang</span>
+                                    @elseif ($row->perpanjangan_status === 'Ditolak')
+                                        <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
+                                    @endif
+                                </div>
+                            </td>
+                            @if (($tab ?? 'aktif') === 'riwayat')
+                                <td>
+                                    @if ($row->denda > 0)
+                                        <strong>Rp {{ number_format($row->denda, 0, ',', '.') }}</strong>
+                                    @else
+                                        <span class="muted">Rp 0</span>
+                                    @endif
+                                </td>
+                            @endif
                             <td>
                                 <div class="row-actions">
                                     <a href="{{ route('pustakawan.peminjaman.show', $row->id) }}" class="icon-btn" title="Detail"><i class="bi bi-eye"></i></a>
                                     <a href="{{ route('pustakawan.peminjaman.edit', ($khususTerlambat ?? false) ? ['id' => $row->id, 'asal' => 'keterlambatan'] : $row->id) }}" class="icon-btn" title="Edit"><i class="bi bi-pencil"></i></a>
-                                    <form action="{{ route('pustakawan.peminjaman.perpanjang', $row->id) }}" method="POST"
-                                          onsubmit="return confirm(@js('Perpanjang peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
-                                        @csrf
-                                        <button type="submit" class="icon-btn" title="Perpanjang" @disabled($row->status !== 'dipinjam')>
-                                            <i class="bi bi-clock"></i>
-                                        </button>
-                                    </form>
+                                    @if (($tab ?? 'aktif') === 'aktif')
+                                        @if ($row->perpanjangan_status === 'Menunggu')
+                                            <form action="{{ route('pustakawan.peminjaman.perpanjangan.setujui', $row->id) }}" method="POST"
+                                                  onsubmit="return confirm(@js('Setujui perpanjangan peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                                @csrf
+                                                <button type="submit" class="icon-btn icon-btn-ok" title="Setujui perpanjangan">
+                                                    <i class="bi bi-check-lg"></i>
+                                                </button>
+                                            </form>
+                                            <form action="{{ route('pustakawan.peminjaman.perpanjangan.tolak', $row->id) }}" method="POST"
+                                                  onsubmit="return confirm(@js('Tolak perpanjangan peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                                @csrf
+                                                <button type="submit" class="icon-btn icon-btn-danger" title="Tolak perpanjangan">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </form>
+                                        @elseif (! $row->tanggal_kembali)
+                                            <form action="{{ route('pustakawan.peminjaman.perpanjang', $row->id) }}" method="POST"
+                                                  onsubmit="return confirm(@js('Perpanjang peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                                @csrf
+                                                <button type="submit" class="icon-btn" title="Perpanjang" @disabled($row->status !== 'dipinjam')>
+                                                    <i class="bi bi-clock"></i>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    @endif
                                 </div>
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="empty">Data peminjaman tidak ditemukan.</td></tr>
+                        <tr>
+                            <td colspan="{{ ($tab ?? 'aktif') === 'riwayat' ? 10 : 8 }}" class="empty">
+                                {{ ($tab ?? 'aktif') === 'riwayat' ? 'Riwayat transaksi tidak ditemukan.' : 'Data peminjaman tidak ditemukan.' }}
+                            </td>
+                        </tr>
                     @endforelse
                 </tbody>
             </table>
@@ -147,18 +228,59 @@
                         {{ $row->jatuh_tempo->translatedFormat('d M Y') }}
                     </small>
 
+                    @if (($tab ?? 'aktif') === 'riwayat')
+                        <small class="loan-dates">
+                            <i class="bi bi-calendar-check"></i>
+                            Kembali: {{ $row->tanggal_kembali ? $row->tanggal_kembali->translatedFormat('d M Y') : '-' }}
+                            <span class="muted">&middot; Denda: Rp {{ number_format($row->denda, 0, ',', '.') }}</span>
+                        </small>
+                    @endif
+
                     <div class="loan-row-bottom">
-                        <span class="status-badge status-{{ $row->status }}">{{ ucfirst($row->status) }}</span>
+                        <div class="status-stack">
+                            <span class="status-badge status-{{ $row->status }}">{{ ucwords(str_replace('-', ' ', $row->status)) }}</span>
+                            @if (($tab ?? 'aktif') === 'riwayat')
+                                <span class="status-badge {{ $row->terlambat ? 'status-terlambat' : 'status-dikembalikan' }}">
+                                    {{ $row->terlambat ? 'Terlambat' : 'Tepat Waktu' }}
+                                </span>
+                            @endif
+                            @if ($row->perpanjangan_status === 'Menunggu')
+                                <span class="status-badge status-menunggu">Perpanjangan Menunggu</span>
+                            @elseif ($row->perpanjangan_status === 'Disetujui')
+                                <span class="status-badge status-dikembalikan">Diperpanjang</span>
+                            @elseif ($row->perpanjangan_status === 'Ditolak')
+                                <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
+                            @endif
+                        </div>
                         <div class="row-actions">
                             <a href="{{ route('pustakawan.peminjaman.show', $row->id) }}" class="icon-btn sm" title="Detail"><i class="bi bi-eye"></i></a>
                             <a href="{{ route('pustakawan.peminjaman.edit', ($khususTerlambat ?? false) ? ['id' => $row->id, 'asal' => 'keterlambatan'] : $row->id) }}" class="icon-btn sm" title="Edit"><i class="bi bi-pencil"></i></a>
-                            <form action="{{ route('pustakawan.peminjaman.perpanjang', $row->id) }}" method="POST"
-                                  onsubmit="return confirm(@js('Perpanjang peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
-                                @csrf
-                                <button type="submit" class="icon-btn sm" title="Perpanjang" @disabled($row->status !== 'dipinjam')>
-                                    <i class="bi bi-clock"></i>
-                                </button>
-                            </form>
+                            @if (($tab ?? 'aktif') === 'aktif')
+                                @if ($row->perpanjangan_status === 'Menunggu')
+                                    <form action="{{ route('pustakawan.peminjaman.perpanjangan.setujui', $row->id) }}" method="POST"
+                                          onsubmit="return confirm(@js('Setujui perpanjangan peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                        @csrf
+                                        <button type="submit" class="icon-btn sm icon-btn-ok" title="Setujui perpanjangan">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ route('pustakawan.peminjaman.perpanjangan.tolak', $row->id) }}" method="POST"
+                                          onsubmit="return confirm(@js('Tolak perpanjangan peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                        @csrf
+                                        <button type="submit" class="icon-btn sm icon-btn-danger" title="Tolak perpanjangan">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                @elseif (! $row->tanggal_kembali)
+                                    <form action="{{ route('pustakawan.peminjaman.perpanjang', $row->id) }}" method="POST"
+                                          onsubmit="return confirm(@js('Perpanjang peminjaman ' . $row->judul . ' oleh ' . $row->nama . '?'))">
+                                        @csrf
+                                        <button type="submit" class="icon-btn sm" title="Perpanjang" @disabled($row->status !== 'dipinjam')>
+                                            <i class="bi bi-clock"></i>
+                                        </button>
+                                    </form>
+                                @endif
+                            @endif
                         </div>
                     </div>
                 </div>

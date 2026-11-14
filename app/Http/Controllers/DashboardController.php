@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\StokBuku;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -36,15 +37,16 @@ class DashboardController extends Controller
     {
         $nama = $user->name ?: ($user->username ?: 'Admin');
 
-        $totalBuku    = DB::table('buku')->count();
-        $bukuTersedia = DB::table('buku')->where('stok', '>', 0)->count();
-        $bukuDipinjam = DB::table('peminjaman')->where('status', 'Dipinjam')->count();
+        $stok         = StokBuku::ringkasan();
+        $totalBuku    = $stok['total'];
+        $bukuTersedia = $stok['tersedia'];
+        $bukuDipinjam = $stok['dipinjam'];
         $menunggu     = DB::table('peminjaman')->where('status', 'Menunggu')->count();
 
         $stat = [
-            ['ikon' => 'bi-book',            'label' => 'Total Buku',             'nilai' => $totalBuku,    'ket' => 'Judul buku di perpustakaan'],
-            ['ikon' => 'bi-bookmark-check',  'label' => 'Buku Tersedia',          'nilai' => $bukuTersedia, 'ket' => 'Siap untuk dipinjam'],
-            ['ikon' => 'bi-book-half',       'label' => 'Buku Dipinjam',          'nilai' => $bukuDipinjam, 'ket' => 'Sedang dipinjam anggota'],
+            ['ikon' => 'bi-book',            'label' => 'Total Buku',             'nilai' => $totalBuku,    'ket' => 'Salinan buku di perpustakaan'],
+            ['ikon' => 'bi-bookmark-check',  'label' => 'Buku Tersedia',          'nilai' => $bukuTersedia, 'ket' => 'Salinan siap untuk dipinjam'],
+            ['ikon' => 'bi-book-half',       'label' => 'Buku Dipinjam',          'nilai' => $bukuDipinjam, 'ket' => 'Salinan sedang dipinjam anggota'],
             ['ikon' => 'bi-hourglass-split', 'label' => 'Menunggu Persetujuan',   'nilai' => $menunggu,     'ket' => 'Pengajuan yang belum diproses'],
         ];
 
@@ -131,9 +133,10 @@ class DashboardController extends Controller
 
         $nama = $user->name ?: ($user->username ?: 'Pustakawan');
 
-        $totalBuku    = DB::table('buku')->count();
-        $bukuTersedia = DB::table('buku')->where('stok', '>', 0)->count();
-        $bukuDipinjam = DB::table('peminjaman')->where('status', 'Dipinjam')->count();
+        $stok         = StokBuku::ringkasan();
+        $totalBuku    = $stok['total'];
+        $bukuTersedia = $stok['tersedia'];
+        $bukuDipinjam = $stok['dipinjam'];
         $menunggu     = DB::table('peminjaman')->where('status', 'Menunggu')->count();
         $totalAnggota = DB::table('siswa')->count();
         $anggotaAktif = DB::table('peminjaman')->where('status', 'Dipinjam')->distinct()->count('id_siswa');
@@ -146,7 +149,7 @@ class DashboardController extends Controller
             ->count();
 
         $stats = [
-            ['color' => 'blue',   'icon' => 'bi-book',                 'label' => 'Total Buku',    'value' => $totalBuku,    'delta' => $bukuTersedia, 'delta_text' => 'judul tersedia'],
+            ['color' => 'blue',   'icon' => 'bi-book',                 'label' => 'Total Buku',    'value' => $totalBuku,    'delta' => $bukuTersedia, 'delta_text' => 'salinan tersedia'],
             ['color' => 'orange', 'icon' => 'bi-journal-arrow-up',     'label' => 'Buku Dipinjam', 'value' => $bukuDipinjam, 'delta' => $menunggu,     'delta_text' => 'menunggu persetujuan'],
             ['color' => 'green',  'icon' => 'bi-people-fill',          'label' => 'Total Anggota', 'value' => $totalAnggota, 'delta' => $anggotaAktif, 'delta_text' => 'sedang meminjam'],
             ['color' => 'red',    'icon' => 'bi-exclamation-triangle', 'label' => 'Terlambat',     'value' => $terlambat,    'delta' => $terlambat,    'delta_text' => 'perlu ditindak'],
@@ -254,15 +257,24 @@ class DashboardController extends Controller
         $idSiswa = DB::table('siswa')->where('id_user', $user->getKey())->value('id_siswa');
         $nama    = DB::table('siswa')->where('id_siswa', $idSiswa)->value('nama_siswa') ?: $user->username;
 
-        $totalBuku        = DB::table('buku')->count();
-        $bukuTersedia     = DB::table('buku')->where('stok', '>', 0)->count();
-        $bukuDipinjam     = DB::table('peminjaman')->where('status', 'Dipinjam')->count();
+        $stok             = StokBuku::ringkasan();
+        $totalBuku        = $stok['total'];
+        $bukuTersedia     = $stok['tersedia'];
+        $bukuDipinjam     = $stok['dipinjam'];
         $bukuDipinjamSaya = $idSiswa
-            ? DB::table('peminjaman')->where('id_siswa', $idSiswa)->where('status', 'Dipinjam')->count()
+            ? DB::table('peminjaman')
+                ->leftJoin('pengembalian', 'pengembalian.id_peminjaman', '=', 'peminjaman.id_peminjaman')
+                ->where('peminjaman.id_siswa', $idSiswa)
+                ->whereIn('peminjaman.status', ['Dipinjam', 'Terlambat'])
+                ->whereNull('pengembalian.id_peminjaman')
+                ->count()
             : 0;
 
         $bukuList = DB::table('buku')
             ->where('stok', '>', 0)
+            // Buku pelajaran tampil lebih dulu agar daftar pratinjau tidak
+            // tercampur novel; buku cerita tetap bisa dilihat di katalog.
+            ->orderByRaw("CASE WHEN kategori = 'Pelajaran' THEN 0 ELSE 1 END")
             ->orderBy('judul')
             ->limit(8)
             ->get(['id_buku as id', 'judul', 'pengarang', 'cover'])
