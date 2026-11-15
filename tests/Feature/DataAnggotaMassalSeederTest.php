@@ -35,6 +35,16 @@ class DataAnggotaMassalSeederTest extends TestCase
         $this->assertSame(30, DB::table('kelas')->count());
         $this->assertSame(30, DB::table('kelas')->distinct()->count('nama_kelas'));
 
+        // Seluruh siswa harus memiliki id_kelas yang cocok dengan nama kelasnya.
+        $this->assertSame(0, DB::table('siswa')->whereNull('id_kelas')->count());
+        $this->assertSame(
+            1020,
+            DB::table('siswa as s')
+                ->join('kelas as k', 'k.id_kelas', '=', 's.id_kelas')
+                ->whereColumn('s.kelas', '=', 'k.nama_kelas')
+                ->count()
+        );
+
         foreach (['VII', 'VIII', 'IX'] as $tingkat) {
             $this->assertSame(10, DB::table('kelas')->where('tingkat', $tingkat)->count());
 
@@ -52,6 +62,7 @@ class DataAnggotaMassalSeederTest extends TestCase
         $this->assertSame(1020, DB::table('siswa')->count());
         $this->assertSame(1020, DB::table('t_user')->where('role', 'Siswa')->count());
         $this->assertSame(30, DB::table('kelas')->count());
+        $this->assertSame(0, DB::table('siswa')->whereNull('id_kelas')->count());
     }
 
     public function test_dashboard_dan_laporan_menampilkan_total_anggota_yang_sama(): void

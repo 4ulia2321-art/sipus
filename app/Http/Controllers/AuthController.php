@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -33,35 +34,38 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $username = $request->username;
+        // Login SIPUS hanya memakai kolom username pada tabel t_user.
+        // Email dan NIS tidak dipakai sebagai identitas login.
+        $username = trim($credentials['username']);
+        $user = User::where('username', $username)->first();
 
-        // Izinkan siswa login memakai NIS sebagai pengganti username
-        if (! str_contains($username, '@')) {
-            $dariNis = DB::table('t_user')
-                ->join('siswa', 'siswa.id_user', '=', 't_user.id_user')
-                ->where('siswa.nis', $username)
-                ->value('t_user.username');
-
-            if ($dariNis) {
-                $username = $dariNis;
-            }
+        // Verifikasi password bcrypt dengan Hash::check. Password yang sudah
+        // tersimpan tidak diubah dan tidak di-hash ulang saat login.
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+            return back()
+                ->withInput($request->only('username'))
+                ->with('error', 'Username atau password yang Anda masukkan salah.');
         }
 
-        if (Auth::attempt(['username' => $username, 'password' => $request->password], $request->boolean('remember'))) {
-            $request->session()->regenerate();
-
-            // Jika admin sudah mengonfirmasi reset password, paksa pengguna
-            // membuat password baru sebelum bisa memakai aplikasi.
-            if (! empty(Auth::user()->reset_approved_at)) {
-                return redirect()->route('password.change')
-                    ->with('status', 'Admin telah mengonfirmasi reset password. Silakan buat password baru Anda.');
-            }
-
-            return redirect()->intended('/dashboard');
+        if (! in_array($user->role, ['Admin', 'Siswa', 'Pustakawan'], true)) {
+            return back()
+                ->withInput($request->only('username'))
+                ->with('error', 'Akun ini tidak memiliki role yang valid. Hubungi administrator.');
         }
 
-        // If credentials don't match, return back with an error
-        return back()->withInput($request->only('username'))->with('error', 'NIS / Username atau password yang Anda masukkan salah.');
+        // Tabel t_user production tidak memiliki kolom remember_token,
+        // sehingga login sesi tidak memakai fitur "remember me".
+        Auth::login($user, false);
+        $request->session()->regenerate();
+
+        // Jika admin sudah mengonfirmasi reset password, paksa pengguna
+        // membuat password baru sebelum bisa memakai aplikasi.
+        if (! empty($user->reset_approved_at)) {
+            return redirect()->route('password.change')
+                ->with('status', 'Admin telah mengonfirmasi reset password. Silakan buat password baru Anda.');
+        }
+
+        return redirect()->intended('/dashboard');
     }
 
     /**

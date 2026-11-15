@@ -155,10 +155,10 @@
                 <form action="{{ route('login') }}" method="POST" class="space-y-4 sm:space-y-5" id="loginForm">
                     @csrf
 
-                    <!-- Field: NIS / Username -->
+                    <!-- Field: Username -->
                     <div>
                         <label for="usernameInput" id="labelUsername" class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
-                            NIS / Username
+                            Username
                         </label>
                         <div class="relative rounded-xl shadow-sm">
                             <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -173,7 +173,8 @@
                                 name="username"
                                 id="usernameInput"
                                 value="{{ old('username') }}"
-                                placeholder="Masukkan NIS atau username"
+                                placeholder="Masukkan username"
+                                autocomplete="username"
                                 required
                                 autofocus
                                 class="w-full pl-11 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 bg-slate-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"

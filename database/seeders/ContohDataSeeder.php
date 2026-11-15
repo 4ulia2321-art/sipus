@@ -125,6 +125,7 @@ class ContohDataSeeder extends Seeder
                 'nis'           => $nis,
                 'nama_siswa'    => $s[0],
                 'kelas'         => $s[1],
+                'id_kelas'      => DB::table('kelas')->where('nama_kelas', $s[1])->value('id_kelas'),
                 'jenis_kelamin' => $s[3],
                 'tempat_lahir'  => $s[4],
                 'tanggal_lahir' => $s[5],

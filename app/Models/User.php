@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,35 +13,55 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
+     * Tabel pengguna pada database SIPUS.
+     *
+     * @var string
+     */
+    protected $table = 't_user';
+
+    /**
+     * Primary key tabel t_user.
+     *
+     * @var string
+     */
+    protected $primaryKey = 'id_user';
+
+    /**
+     * t_user tidak memakai kolom created_at/updated_at Eloquent.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
+     * Kolom yang boleh diisi melalui model.
      *
      * @var list<string>
      */
     protected $fillable = [
+        'username',
         'name',
-        'email',
         'password',
+        'role',
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * Jangan pernah mengirim hash password ke tampilan/JSON.
      *
      * @var list<string>
      */
     protected $hidden = [
         'password',
-        'remember_token',
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * Password disimpan sebagai hash (bcrypt) oleh Laravel.
      *
      * @return array<string, string>
      */
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
     }

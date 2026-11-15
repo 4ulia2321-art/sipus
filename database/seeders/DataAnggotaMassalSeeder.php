@@ -25,6 +25,7 @@ class DataAnggotaMassalSeeder extends Seeder
     public function run(): void
     {
         $this->sinkronKelas();
+        $this->sinkronIdKelas();
 
         $jumlahKelas = count(self::TINGKAT) * count(self::HURUF);
         $target = $jumlahKelas * self::PER_KELAS;
@@ -82,6 +83,7 @@ class DataAnggotaMassalSeeder extends Seeder
             foreach (self::TINGKAT as $tingkat) {
                 foreach (self::HURUF as $huruf) {
                     $kelas = "{$tingkat} {$huruf}";
+                    $idKelas = DB::table('kelas')->where('nama_kelas', $kelas)->value('id_kelas');
                     $sudahAda = DB::table('siswa')->where('kelas', $kelas)->count();
                     $butuh = max(0, self::PER_KELAS - $sudahAda);
 
@@ -116,6 +118,7 @@ class DataAnggotaMassalSeeder extends Seeder
                             'nis'           => $nis,
                             'nama_siswa'    => $nama,
                             'kelas'         => $kelas,
+                            'id_kelas'      => $idKelas,
                             'jenis_kelamin' => $perempuan ? 'Perempuan' : 'Laki-laki',
                             'tempat_lahir'  => $kota[$namaUrut % count($kota)],
                             'tanggal_lahir' => Carbon::create($tahun, $bulan, $hari)->toDateString(),
@@ -128,6 +131,30 @@ class DataAnggotaMassalSeeder extends Seeder
                 }
             }
         });
+    }
+
+    /**
+     * Lengkapi id_kelas siswa lama yang masih null berdasarkan nama kelasnya.
+     */
+    private function sinkronIdKelas(): void
+    {
+        $petaKelas = DB::table('kelas')->pluck('id_kelas', 'nama_kelas');
+
+        DB::table('siswa')
+            ->whereNull('id_kelas')
+            ->select('id_siswa', 'kelas')
+            ->orderBy('id_siswa')
+            ->chunkById(500, function ($rows) use ($petaKelas) {
+                foreach ($rows as $row) {
+                    $idKelas = $petaKelas[trim((string) $row->kelas)] ?? null;
+
+                    if ($idKelas !== null) {
+                        DB::table('siswa')
+                            ->where('id_siswa', $row->id_siswa)
+                            ->update(['id_kelas' => $idKelas]);
+                    }
+                }
+            }, 'id_siswa');
     }
 
     /**

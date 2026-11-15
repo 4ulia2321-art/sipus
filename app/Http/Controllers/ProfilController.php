@@ -142,6 +142,7 @@ class ProfilController extends Controller
                     'nis'           => $data['nis'],
                     'nama_siswa'    => $data['nama_siswa'],
                     'kelas'         => $data['kelas'],
+                    'id_kelas'      => DB::table('kelas')->where('nama_kelas', trim($data['kelas']))->value('id_kelas'),
                     'jenis_kelamin' => $data['jenis_kelamin'] ?? null,
                     'tempat_lahir'  => $data['tempat_lahir'] ?? null,
                     'tanggal_lahir' => $data['tanggal_lahir'] ?? null,
