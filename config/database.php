@@ -3,6 +3,24 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+// Banyak platform deployment (termasuk EthioDeploy) hanya menyediakan
+// DATABASE_URL tanpa DB_CONNECTION. Tanpa inferensi ini, Laravel akan jatuh
+// ke koneksi sqlite kosong dan login selalu gagal meski akun ada di MySQL.
+$databaseUrl = env('DATABASE_URL');
+$databaseUrlScheme = is_string($databaseUrl)
+    ? strtolower((string) parse_url($databaseUrl, PHP_URL_SCHEME))
+    : '';
+
+$inferredConnection = match ($databaseUrlScheme) {
+    'mysql'                         => 'mysql',
+    'mariadb'                       => 'mariadb',
+    'pgsql', 'postgres', 'postgresql' => 'pgsql',
+    'sqlsrv', 'mssql'               => 'sqlsrv',
+    default                         => 'sqlite',
+};
+
+$defaultConnection = env('DB_CONNECTION') ?: $inferredConnection;
+
 return [
 
     /*
@@ -17,7 +35,7 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    'default' => $defaultConnection,
 
     /*
     |--------------------------------------------------------------------------
@@ -34,7 +52,9 @@ return [
 
         'sqlite' => [
             'driver' => 'sqlite',
-            'url' => env('DB_URL'),
+            // Hanya pakai DATABASE_URL untuk SQLite bila skemanya memang sqlite.
+            // Jangan sampai URL MySQL dipakai oleh koneksi SQLite.
+            'url' => env('DB_URL') ?: ($databaseUrlScheme === 'sqlite' ? $databaseUrl : null),
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
@@ -46,7 +66,7 @@ return [
 
         'mysql' => [
             'driver' => 'mysql',
-            'url' => env('DB_URL', env('DATABASE_URL')),
+            'url' => env('DB_URL') ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -66,7 +86,7 @@ return [
 
         'mariadb' => [
             'driver' => 'mariadb',
-            'url' => env('DB_URL'),
+            'url' => env('DB_URL') ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '3306'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -86,7 +106,7 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DB_URL'),
+            'url' => env('DB_URL') ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -101,7 +121,7 @@ return [
 
         'sqlsrv' => [
             'driver' => 'sqlsrv',
-            'url' => env('DB_URL'),
+            'url' => env('DB_URL') ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', 'localhost'),
             'port' => env('DB_PORT', '1433'),
             'database' => env('DB_DATABASE', 'laravel'),

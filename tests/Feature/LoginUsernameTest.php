@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Tests\TestCase;
 
 class LoginUsernameTest extends TestCase
@@ -86,6 +87,53 @@ class LoginUsernameTest extends TestCase
         ])->assertRedirect('/dashboard');
 
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_toleran_terhadap_spasi_dan_huruf_besar_kecil(): void
+    {
+        $user = $this->buatUser('Admin', 'AdminSpasi');
+
+        // Simulasikan data production lama yang menyimpan spasi ekstra.
+        DB::table('t_user')->where('id_user', $user->id_user)->update([
+            'username' => '  AdminSpasi  ',
+        ]);
+
+        $this->assertSame(
+            $user->id_user,
+            User::findByUsername('adminspasi')?->id_user
+        );
+
+        $this->post('/login', [
+            'username' => '  adminspasi  ',
+            'password' => 'rahasia123',
+        ])->assertRedirect('/dashboard');
+
+        $this->assertAuthenticatedAs($user->fresh());
+    }
+
+    public function test_log_kegagalan_login_tidak_memuat_password_atau_hash(): void
+    {
+        $this->buatUser('Admin', 'adminlog');
+        Log::spy();
+
+        $this->post('/login', [
+            'username' => 'adminlog',
+            'password' => 'password-salah',
+        ])->assertSessionHas('error');
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(function (string $pesan, array $konteks): bool {
+                return $pesan === 'Login SIPUS gagal'
+                    && $konteks['username'] === 'adminlog'
+                    && $konteks['user_ditemukan'] === true
+                    && $konteks['password_valid'] === false
+                    && $konteks['alasan'] === 'password_tidak_cocok'
+                    && ! array_key_exists('password', $konteks)
+                    && ! str_contains((string) json_encode($konteks), '$2y$');
+            })
+            ->once();
+
+        $this->assertGuest();
     }
 
     public function test_login_menolak_nis_dan_email_karena_harus_username(): void

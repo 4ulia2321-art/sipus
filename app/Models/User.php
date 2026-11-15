@@ -65,4 +65,31 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    /**
+     * Cari akun berdasarkan username.
+     *
+     * Pencarian pertama memakai nilai persis. Jika tidak ditemukan, pencarian
+     * kedua mengabaikan spasi di awal/akhir dan perbedaan huruf besar-kecil.
+     * Fallback ini penting untuk data production lama yang mungkin menyimpan
+     * username dengan spasi atau kapitalisasi berbeda.
+     */
+    public static function findByUsername(string $username): ?self
+    {
+        $username = trim($username);
+
+        if ($username === '') {
+            return null;
+        }
+
+        $user = static::query()->where('username', $username)->first();
+
+        if ($user !== null) {
+            return $user;
+        }
+
+        return static::query()
+            ->whereRaw('LOWER(TRIM(username)) = ?', [mb_strtolower($username)])
+            ->first();
+    }
 }

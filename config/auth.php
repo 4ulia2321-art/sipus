@@ -64,7 +64,9 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            // Provider auth SIPUS selalu memakai App\Models\User (t_user).
+            // Jangan biarkan AUTH_MODEL yang salah di production menimpa model ini.
+            'model' => User::class,
         ],
 
         // 'users' => [

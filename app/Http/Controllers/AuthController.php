@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -37,17 +38,29 @@ class AuthController extends Controller
         // Login SIPUS hanya memakai kolom username pada tabel t_user.
         // Email dan NIS tidak dipakai sebagai identitas login.
         $username = trim($credentials['username']);
-        $user = User::where('username', $username)->first();
+        $user = User::findByUsername($username);
+
+        if (! $user) {
+            $this->catatLoginGagal($request, $username, null, false, 'username_tidak_ditemukan');
+
+            return back()
+                ->withInput($request->only('username'))
+                ->with('error', 'Username atau password yang Anda masukkan salah.');
+        }
 
         // Verifikasi password bcrypt dengan Hash::check. Password yang sudah
         // tersimpan tidak diubah dan tidak di-hash ulang saat login.
-        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
+        if (! Hash::check($credentials['password'], $user->password)) {
+            $this->catatLoginGagal($request, $username, $user, false, 'password_tidak_cocok');
+
             return back()
                 ->withInput($request->only('username'))
                 ->with('error', 'Username atau password yang Anda masukkan salah.');
         }
 
         if (! in_array($user->role, ['Admin', 'Siswa', 'Pustakawan'], true)) {
+            $this->catatLoginGagal($request, $username, $user, true, 'role_tidak_valid');
+
             return back()
                 ->withInput($request->only('username'))
                 ->with('error', 'Akun ini tidak memiliki role yang valid. Hubungi administrator.');
@@ -57,6 +70,13 @@ class AuthController extends Controller
         // sehingga login sesi tidak memakai fitur "remember me".
         Auth::login($user, false);
         $request->session()->regenerate();
+
+        Log::info('Login SIPUS berhasil', [
+            'username'      => $user->username,
+            'role'          => $user->role,
+            'auth_model'    => config('auth.providers.users.model'),
+            'db_connection' => config('database.default'),
+        ]);
 
         // Jika admin sudah mengonfirmasi reset password, paksa pengguna
         // membuat password baru sebelum bisa memakai aplikasi.
@@ -157,6 +177,68 @@ class AuthController extends Controller
         ]);
 
         return redirect()->route('dashboard')->with('success', 'Password baru berhasil disimpan.');
+    }
+
+    /**
+     * Catat kegagalan login tanpa pernah menyimpan password atau hash-nya.
+     *
+     * Log ini dipakai untuk membedakan tiga penyebab utama di production:
+     * username tidak ada di database yang sedang dipakai, hash password tidak
+     * cocok, atau role tidak valid. Informasi koneksi membantu mendeteksi
+     * aplikasi yang ternyata membaca SQLite kosong, bukan MySQL/DATABASE_URL.
+     */
+    private function catatLoginGagal(
+        Request $request,
+        string $username,
+        ?User $user,
+        bool $passwordValid,
+        string $alasan
+    ): void {
+        try {
+            $koneksi = (string) config('database.default');
+            $konfigurasi = (array) config("database.connections.{$koneksi}", []);
+
+            $driver = $konfigurasi['driver'] ?? null;
+            $host = $konfigurasi['host'] ?? null;
+            $port = $konfigurasi['port'] ?? null;
+            $database = $konfigurasi['database'] ?? null;
+
+            // URL koneksi dapat berisi kredensial. Hanya ambil host/port/nama
+            // database, jangan pernah menulis URL lengkap ke log.
+            $url = $konfigurasi['url'] ?? null;
+            if (is_string($url) && $url !== '') {
+                $driver = parse_url($url, PHP_URL_SCHEME) ?: $driver;
+                $host = parse_url($url, PHP_URL_HOST) ?: $host;
+                $port = parse_url($url, PHP_URL_PORT) ?: $port;
+                $path = parse_url($url, PHP_URL_PATH);
+                $database = $path !== null ? ltrim($path, '/') : $database;
+            }
+
+            $hashInfo = $user && is_string($user->password) && $user->password !== ''
+                ? password_get_info($user->password)
+                : [];
+
+            Log::warning('Login SIPUS gagal', [
+                'username'       => $username,
+                'alasan'         => $alasan,
+                'user_ditemukan' => $user !== null,
+                'password_valid' => $passwordValid,
+                'role'           => $user?->role,
+                'hash_algo'      => $hashInfo['algoName'] ?? null,
+                'auth_model'     => config('auth.providers.users.model'),
+                'auth_table'     => (new User())->getTable(),
+                'db_connection'  => $koneksi,
+                'db_driver'      => $driver,
+                'db_host'        => $host,
+                'db_port'        => $port,
+                'db_database'    => $database,
+                'config_cached'  => app()->configurationIsCached(),
+                'app_env'        => app()->environment(),
+                'ip'             => $request->ip(),
+            ]);
+        } catch (\Throwable) {
+            // Kegagalan logging tidak boleh mengubah respons login.
+        }
     }
 
     /**
