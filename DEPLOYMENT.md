@@ -51,6 +51,34 @@ php artisan migrate --force
 Jangan menjalankan `migrate:fresh` atau `db:seed` di production. Seeder
 `ContohDataSeeder` bersifat destruktif dan dapat menghapus data.
 
+## Error "Table 't_user' already exists" (kode 1050)
+
+Kondisi ini terjadi bila tabel `t_user` sudah diimpor ke database production
+sebelum migrasi dicatat di tabel `migrations`. Migrasi `t_user` sekarang
+idempoten: tabel dan kolom hanya dibuat jika belum ada, sedangkan data akun
+yang sudah ada tidak dihapus atau diubah.
+
+Langkah aman:
+
+1. Buat backup database production.
+2. Periksa koneksi dan struktur tanpa mengubah data:
+
+   ```bash
+   php artisan sipus:auth-audit
+   ```
+
+   Pastikan database yang terbaca benar dan jumlah akun tetap 1.024.
+3. Jalankan migrasi biasa:
+
+   ```bash
+   php artisan config:clear
+   php artisan migrate --force
+   php artisan config:cache
+   ```
+
+Jangan menghapus tabel `t_user`, menjalankan `migrate:fresh`, `db:seed`, atau
+mengubah password pengguna untuk mengatasi error ini.
+
 ## Audit login read-only
 
 Command ini tidak mengubah data, password, atau struktur database:
