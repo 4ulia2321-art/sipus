@@ -4,9 +4,9 @@ use Illuminate\Support\Str;
 use Pdo\Mysql;
 
 // Banyak platform deployment (termasuk EthioDeploy) hanya menyediakan
-// DATABASE_URL tanpa DB_CONNECTION. Tanpa inferensi ini, Laravel akan jatuh
-// ke koneksi sqlite kosong dan login selalu gagal meski akun ada di MySQL.
-$databaseUrl = env('DATABASE_URL');
+// DATABASE_URL/DB_URL tanpa DB_CONNECTION. Tanpa inferensi ini, Laravel akan
+// jatuh ke koneksi sqlite kosong dan login selalu gagal meski akun ada di MySQL.
+$databaseUrl = env('DB_URL') ?: env('DATABASE_URL');
 $databaseUrlScheme = is_string($databaseUrl)
     ? strtolower((string) parse_url($databaseUrl, PHP_URL_SCHEME))
     : '';
@@ -52,8 +52,8 @@ return [
 
         'sqlite' => [
             'driver' => 'sqlite',
-            // Hanya pakai DATABASE_URL untuk SQLite bila skemanya memang sqlite.
-            // Jangan sampai URL MySQL dipakai oleh koneksi SQLite.
+            // DB_URL tetap dihormati. DATABASE_URL hanya dipakai SQLite bila
+            // skemanya memang sqlite, agar URL MySQL tidak masuk ke SQLite.
             'url' => env('DB_URL') ?: ($databaseUrlScheme === 'sqlite' ? $databaseUrl : null),
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
