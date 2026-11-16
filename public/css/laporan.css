@@ -537,3 +537,115 @@
     color: var(--ink);
     white-space: nowrap;
 }
+
+/* ===== Halaman Rekap Data ===== */
+.rekap-filter-card {
+    padding: 16px 18px;
+    margin-bottom: 18px;
+}
+
+.rekap-filter {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.rekap-filter > * {
+    min-width: 0;
+}
+
+.rekap-filter .form-group {
+    margin-bottom: 0;
+}
+
+.rekap-filter .form-group select,
+.rekap-filter .form-group input {
+    width: 100%;
+}
+
+.rekap-filter-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.rekap-filter-actions .btn-primary,
+.rekap-filter-actions .btn-outline {
+    padding: 11px 16px;
+    white-space: nowrap;
+}
+
+.rekap-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.rekap-hint {
+    margin: -4px 0 16px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+.rekap-hint i {
+    color: var(--brand);
+    margin-right: 4px;
+}
+
+.rekap-title i {
+    color: var(--brand);
+    margin-right: 4px;
+}
+
+.rekap-num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.report-table th.rekap-num,
+.report-table td.rekap-num {
+    text-align: right;
+}
+
+@media (max-width: 1200px) {
+    .rekap-filter {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    .rekap-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .rekap-filter {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .rekap-filter-actions {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 640px) {
+    .rekap-filter {
+        grid-template-columns: 1fr;
+    }
+
+    .rekap-filter-actions {
+        grid-column: auto;
+        flex-direction: column;
+    }
+
+    .rekap-filter-actions .btn-primary,
+    .rekap-filter-actions .btn-outline {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -11,6 +11,7 @@ use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\RiwayatController;
 use App\Http\Controllers\NotifikasiController;
 use App\Http\Controllers\PengaturanController;
+use App\Http\Controllers\RekapController;
 use App\Http\Controllers\StatistikController;
 
 // Default landing redirects to login
@@ -130,8 +131,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/pengaturan', [PengaturanController::class, 'index'])->name('pengaturan');
         Route::put('/pengaturan', [PengaturanController::class, 'update'])->name('pengaturan.update');
 
-        // Statistik & laporan keseluruhan
+        // Statistik, rekap, & laporan keseluruhan
         Route::get('/statistik', [StatistikController::class, 'index'])->name('statistik');
+        Route::get('/rekap', [RekapController::class, 'index'])->name('rekap');
         Route::get('/laporan', [AdminController::class, 'laporan'])->name('laporan');
     });
 

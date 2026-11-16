@@ -31,6 +31,9 @@
             <a href="{{ route('admin.statistik') }}" class="{{ request()->routeIs('admin.statistik*') ? 'active' : '' }}">
                 <i class="bi bi-graph-up-arrow"></i> <span>Statistik</span>
             </a>
+            <a href="{{ route('admin.rekap') }}" class="{{ request()->routeIs('admin.rekap*') ? 'active' : '' }}">
+                <i class="bi bi-table"></i> <span>Rekap Data</span>
+            </a>
             <a href="{{ route('admin.laporan') }}" class="{{ request()->routeIs('admin.laporan*') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart"></i> <span>Laporan Keseluruhan</span>
             </a>
