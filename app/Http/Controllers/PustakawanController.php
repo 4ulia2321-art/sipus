@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Rules\UniqueNormalized;
 use App\Support\Pengaturan;
 use App\Support\StokBuku;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -1346,9 +1347,31 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
+        // Rapikan input agar "Buku A" dan " Buku A " dianggap sama.
+        $request->merge([
+            'no_seri_buku' => trim((string) $request->input('no_seri_buku')),
+            'judul'        => trim((string) $request->input('judul')),
+        ]);
+
         $data = $request->validate([
-            'no_seri_buku' => ['required', 'string', 'max:30', 'unique:buku,no_seri_buku'],
-            'judul'        => ['required', 'string', 'max:200'],
+            'no_seri_buku' => [
+                'required', 'string', 'max:30',
+                new UniqueNormalized(
+                    'buku',
+                    'no_seri_buku',
+                    message: 'No seri buku sudah digunakan. Gunakan kode lain.',
+                    keyColumn: 'id_buku'
+                ),
+            ],
+            'judul'        => [
+                'required', 'string', 'max:200',
+                new UniqueNormalized(
+                    'buku',
+                    'judul',
+                    message: 'Judul buku sudah terdaftar. Gunakan judul lain atau tambah stok pada buku yang sudah ada.',
+                    keyColumn: 'id_buku'
+                ),
+            ],
             'pengarang'    => ['nullable', 'string', 'max:100'],
             'penerbit'     => ['nullable', 'string', 'max:100'],
             'id_kategori'  => ['required', 'integer', 'exists:kategori_buku,id_kategori'],
@@ -1391,9 +1414,32 @@ class PustakawanController extends Controller
         $buku = DB::table('buku')->where('id_buku', $id)->first();
         abort_if(! $buku, 404);
 
+        $request->merge([
+            'no_seri_buku' => trim((string) $request->input('no_seri_buku')),
+            'judul'        => trim((string) $request->input('judul')),
+        ]);
+
         $data = $request->validate([
-            'no_seri_buku' => ['required', 'string', 'max:30', Rule::unique('buku', 'no_seri_buku')->ignore($id, 'id_buku')],
-            'judul'        => ['required', 'string', 'max:200'],
+            'no_seri_buku' => [
+                'required', 'string', 'max:30',
+                new UniqueNormalized(
+                    'buku',
+                    'no_seri_buku',
+                    $id,
+                    'No seri buku sudah digunakan. Gunakan kode lain.',
+                    'id_buku'
+                ),
+            ],
+            'judul'        => [
+                'required', 'string', 'max:200',
+                new UniqueNormalized(
+                    'buku',
+                    'judul',
+                    $id,
+                    'Judul buku sudah terdaftar. Gunakan judul lain atau tambah stok pada buku yang sudah ada.',
+                    'id_buku'
+                ),
+            ],
             'pengarang'    => ['nullable', 'string', 'max:100'],
             'penerbit'     => ['nullable', 'string', 'max:100'],
             'id_kategori'  => ['required', 'integer', 'exists:kategori_buku,id_kategori'],
