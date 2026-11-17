@@ -82,8 +82,8 @@
                         </svg>
                     <div>
                         <h1 class="text-xl font-extrabold text-[#17325c] tracking-tight leading-tight">SIPUS</h1>
-                        <p class="text-[12px] sm:text-[13px] text-[#556d8f] font-medium leading-snug">Sistem Informasi Perpustakaan</p>
-                        <p class="text-[11px] sm:text-[12px] text-[#556d8f] font-normal leading-snug">SMP Negeri 01 Pasirjambu</p>
+                        <p class="text-[13px] sm:text-sm text-[#556d8f] font-medium leading-snug">Sistem Informasi Perpustakaan</p>
+                        <p class="text-[12px] sm:text-[13px] text-[#556d8f] font-normal leading-snug">SMP Negeri 01 Pasirjambu</p>
                     </div>
                 </div>
 
@@ -102,12 +102,12 @@
                 <!-- Bottom Branding & Quote -->
                 <div class="relative z-10 text-center flex flex-col items-center pt-2">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-[#17325c] tracking-wider">SIPUS</h2>
-                    <p class="text-xs sm:text-sm font-semibold text-[#294c7b] mt-0.5 tracking-wide">Sistem Informasi Perpustakaan Digital</p>
+                    <p class="text-sm sm:text-base font-semibold text-[#294c7b] mt-0.5 tracking-wide">Sistem Informasi Perpustakaan Digital</p>
 
                     <!-- Decorative small line -->
                     <div class="w-10 h-1 bg-[#3a7ad4] rounded-full my-3"></div>
 
-                    <p class="text-[12px] sm:text-[13px] text-[#526a8c] italic font-normal max-w-xs leading-relaxed">
+                    <p class="text-[13px] sm:text-sm text-[#526a8c] italic font-normal max-w-xs leading-relaxed">
                         &ldquo;Membaca hari ini, untuk masa depan yang lebih baik&rdquo;
                     </p>
                 </div>
@@ -119,12 +119,12 @@
                 <!-- Login Title -->
                 <div class="mb-6">
                     <h2 class="text-2xl sm:text-3xl font-extrabold text-[#1a2f4c] tracking-tight">Login</h2>
-                    <p class="text-xs sm:text-sm text-slate-500 mt-1.5 font-normal">Masuk untuk melanjutkan ke akun Anda</p>
+                    <p class="text-sm sm:text-base text-slate-500 mt-1.5 font-normal">Masuk untuk melanjutkan ke akun Anda</p>
                 </div>
 
                 <!-- Alerts (Validation / Error / Success) -->
                 @if (session('error'))
-                    <div class="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5">
+                    <div class="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm sm:text-base flex items-start gap-2.5">
                         <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -133,7 +133,7 @@
                 @endif
 
                 @if ($errors->any())
-                    <div class="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm">
+                    <div class="mb-4 p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm sm:text-base">
                         <ul class="list-disc list-inside space-y-1">
                             @foreach ($errors->all() as $error)
                                 <li>{{ $error }}</li>
@@ -143,7 +143,7 @@
                 @endif
 
                 @if (session('status'))
-                    <div class="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs sm:text-sm flex items-start gap-2.5">
+                    <div class="mb-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm sm:text-base flex items-start gap-2.5">
                         <svg class="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -157,7 +157,7 @@
 
                     <!-- Field: Username -->
                     <div>
-                        <label for="usernameInput" id="labelUsername" class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
+                        <label for="usernameInput" id="labelUsername" class="block text-sm sm:text-base font-semibold text-slate-700 mb-1.5">
                             Username
                         </label>
                         <div class="relative rounded-xl shadow-sm">
@@ -177,14 +177,14 @@
                                 autocomplete="username"
                                 required
                                 autofocus
-                                class="w-full pl-11 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 bg-slate-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
+                                class="w-full pl-11 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-base text-slate-800 placeholder-slate-400 bg-slate-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
                             >
                         </div>
                     </div>
 
                     <!-- Field: Password -->
                     <div>
-                        <label for="passwordInput" class="block text-xs sm:text-sm font-semibold text-slate-700 mb-1.5">
+                        <label for="passwordInput" class="block text-sm sm:text-base font-semibold text-slate-700 mb-1.5">
                             Password
                         </label>
                         <div class="relative rounded-xl shadow-sm">
@@ -201,7 +201,7 @@
                                 id="passwordInput"
                                 placeholder="Masukkan password"
                                 required
-                                class="w-full pl-11 pr-11 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 bg-slate-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
+                                class="w-full pl-11 pr-11 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-base text-slate-800 placeholder-slate-400 bg-slate-50/50 hover:bg-white focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all duration-200"
                             >
                             <!-- Password Toggle Eye Button -->
                             <button
@@ -228,7 +228,7 @@
                     <div class="pt-1">
                         <button
                             type="submit"
-                            class="w-full bg-[#3a7ad4] hover:bg-[#2d6ac0] active:bg-[#2457a1] text-white font-semibold py-2.5 sm:py-3 px-4 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.99] transition-all duration-200 text-sm sm:text-base flex items-center justify-center gap-2 cursor-pointer"
+                            class="w-full bg-[#3a7ad4] hover:bg-[#2d6ac0] active:bg-[#2457a1] text-white font-semibold py-2.5 sm:py-3 px-4 rounded-xl shadow-md shadow-blue-500/20 hover:shadow-lg hover:shadow-blue-500/30 active:scale-[0.99] transition-all duration-200 text-base sm:text-[17px] flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <span>Masuk</span>
                         </button>
@@ -236,7 +236,7 @@
 
                     <!-- Forgot Password Link -->
                     <div class="text-center pt-1">
-                        <a href="{{ route('password.request') }}" class="text-xs sm:text-sm font-medium text-[#3a7ad4] hover:text-[#2457a1] hover:underline transition-colors">
+                        <a href="{{ route('password.request') }}" class="text-sm sm:text-base font-medium text-[#3a7ad4] hover:text-[#2457a1] hover:underline transition-colors">
                             Lupa password?
                         </a>
                     </div>

@@ -25,7 +25,7 @@
 
         <form method="GET" action="{{ route($area . '.statistik') }}" class="field field-date range-field">
             <i class="bi bi-calendar3"></i>
-            <select name="grafik" onchange="this.form.submit()" class="select-sm" style="border:0;background:transparent;font-family:inherit;font-size:13.5px;color:inherit;outline:none;width:100%;">
+            <select name="grafik" onchange="this.form.submit()" class="select-sm" style="border:0;background:transparent;font-family:inherit;color:inherit;outline:none;width:100%;">
                 <option value="7" @selected($grafik == 7)>7 Hari Terakhir</option>
                 <option value="30" @selected($grafik == 30)>30 Hari Terakhir</option>
             </select>

@@ -110,8 +110,15 @@
                             <td class="c-check"><input type="checkbox" class="row-check" value="{{ $b['id'] }}"></td>
                             <td>{{ $b['no'] }}</td>
                             <td>
+                                @php
+                                    // Inisial dua kata pertama agar teks sampul tidak terpotong.
+                                    $inisial = collect(preg_split('/\s+/', trim($b['judul'])))
+                                        ->take(2)
+                                        ->map(fn ($kata) => mb_strtoupper(mb_substr($kata, 0, 1)))
+                                        ->implode('');
+                                @endphp
                                 <div class="cover" style="background: linear-gradient(160deg, {{ $b['cover'][0] }}, {{ $b['cover'][1] }});">
-                                    <span>{{ \Illuminate\Support\Str::limit($b['judul'], 14, '') }}</span>
+                                    <span>{{ $inisial }}</span>
                                 </div>
                             </td>
                             <td>{{ $b['seri'] }}</td>

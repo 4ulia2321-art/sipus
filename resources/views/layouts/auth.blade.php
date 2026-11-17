@@ -62,7 +62,7 @@
 
         .auth-card h2 {
             margin: 20px 0 8px;
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 800;
             color: #17325c;
             letter-spacing: -0.5px;
@@ -70,8 +70,8 @@
 
         .auth-card .lead {
             margin: 0 0 22px;
-            font-size: 14px;
-            line-height: 1.6;
+            font-size: 15px;
+            line-height: 1.65;
             color: #6b7a93;
         }
 
@@ -132,9 +132,9 @@
             align-items: flex-start;
             gap: 8px;
             text-align: left;
-            padding: 12px 14px;
+            padding: 13px 15px;
             border-radius: 12px;
-            font-size: 13px;
+            font-size: 14px;
             line-height: 1.5;
             margin-bottom: 18px;
         }
@@ -155,7 +155,7 @@
         .field-label {
             display: block;
             text-align: left;
-            font-size: 12.5px;
+            font-size: 13.5px;
             font-weight: 600;
             color: #334155;
             margin: 0 0 6px;
@@ -182,7 +182,7 @@
             border-radius: 12px;
             background: #f8fafc;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 15px;
             color: #1a2f4c;
             transition: 0.2s;
         }
@@ -228,7 +228,7 @@
             display: block;
             text-align: left;
             color: #dc2626;
-            font-size: 12px;
+            font-size: 13px;
             margin: 2px 0 0;
         }
 
@@ -241,7 +241,7 @@
             background: #3a7ad4;
             color: #ffffff;
             font-family: inherit;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             display: inline-flex;
@@ -269,7 +269,7 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-size: 13.5px;
+            font-size: 14.5px;
             font-weight: 600;
             color: #3a7ad4;
             text-decoration: none;
@@ -279,12 +279,27 @@
 
         .auth-note {
             margin-top: 18px;
-            font-size: 12px;
+            font-size: 13px;
             color: #94a3b8;
-            line-height: 1.6;
+            line-height: 1.65;
         }
 
         .auth-note strong { color: #3a7ad4; }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px;
+            }
+
+            .auth-card {
+                padding: 32px 22px 26px;
+                border-radius: 22px;
+            }
+
+            .auth-card h2 {
+                font-size: 25px;
+            }
+        }
     </style>
 </head>
 <body>

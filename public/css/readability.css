@@ -1,0 +1,1293 @@
+/* =========================================================
+   SIPUS - Layer keterbacaan (readability)
+   Dimuat paling akhir setelah CSS halaman, khusus tampilan layar.
+   Tujuan: memperbesar teks, merapikan jarak, dan mencegah teks
+   terpotong tanpa mengubah warna, struktur, atau alur aplikasi.
+   ========================================================= */
+
+@media screen {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    body {
+        font-size: 15px;
+        line-height: 1.55;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        line-height: 1.3;
+    }
+
+    /* ===== Sidebar ===== */
+    .sidebar {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+        padding-bottom: 24px;
+    }
+
+    .sidebar::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 999px;
+    }
+
+    /* Menu Pustakawan panjang: biarkan mengalir dan bisa digulir,
+       jangan sampai terpotong atau menimpa tombol keluar. */
+    .sidebar > div:first-child,
+    .sidebar-footer {
+        flex-shrink: 0;
+    }
+
+    .sidebar-brand .brand-text strong,
+    .brand-text strong {
+        font-size: 17px;
+    }
+
+    .sidebar-brand .brand-text small,
+    .brand-text small {
+        font-size: 12px;
+        line-height: 1.4;
+    }
+
+    .sidebar-menu a {
+        font-size: 14.5px;
+        padding: 12px 14px;
+        line-height: 1.35;
+        flex-shrink: 0;
+    }
+
+    .sidebar-menu a i {
+        font-size: 17px;
+        width: 22px;
+    }
+
+    .logout-btn,
+    .menu-btn {
+        font-size: 14px;
+        padding: 12px;
+    }
+
+    .menu-btn {
+        padding: 12px 14px;
+    }
+
+    .menu-btn i {
+        font-size: 17px;
+        width: 22px;
+    }
+
+    /* ===== Topbar ===== */
+    .topbar-search {
+        padding: 9px 16px;
+    }
+
+    .topbar-search input,
+    .navbar-search input {
+        font-size: 14px;
+    }
+
+    .topbar-search button {
+        font-size: 15px;
+    }
+
+    .topbar-bell,
+    .navbar-bell {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+
+    .topbar-user .avatar,
+    .navbar-user .avatar {
+        font-size: 32px;
+    }
+
+    .user-meta .user-name,
+    .user-info .user-name {
+        font-size: 14px;
+    }
+
+    .user-meta small,
+    .user-info small {
+        font-size: 12px;
+    }
+
+    .topbar-user .bi-chevron-down {
+        font-size: 13px;
+    }
+
+    .menu-toggle {
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
+    }
+
+    /* ===== Judul halaman, breadcrumb, sapaan ===== */
+    .breadcrumb {
+        font-size: 13.5px;
+        line-height: 1.45;
+    }
+
+    .page-title {
+        padding: 19px 21px;
+    }
+
+    .page-title h1,
+    .page-title h2 {
+        font-size: 23px;
+        line-height: 1.25;
+    }
+
+    .page-title p {
+        font-size: 14.5px;
+        line-height: 1.5;
+        margin-top: 4px;
+    }
+
+    .page-title > i {
+        width: 50px;
+        height: 50px;
+        font-size: 23px;
+    }
+
+    .greeting h1 {
+        font-size: 25px;
+        line-height: 1.25;
+    }
+
+    .greeting p {
+        font-size: 15px;
+        line-height: 1.55;
+    }
+
+    .admin-hero-title h1 {
+        font-size: 24px;
+    }
+
+    .admin-hero-title p {
+        font-size: 14.5px;
+        line-height: 1.5;
+    }
+
+    .crumb {
+        font-size: 12.5px;
+    }
+
+    .hero h1 {
+        font-size: 24px;
+    }
+
+    .hero p {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    .pd-dash .page-head h2 {
+        font-size: 24px;
+        line-height: 1.25;
+    }
+
+    .pd-dash .page-head p {
+        font-size: 14.5px;
+        line-height: 1.5;
+    }
+
+    .banner-text h2 {
+        font-size: 22px;
+    }
+
+    .banner-text p {
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .page-banner .date-chip,
+    .pd-dash .date-chip {
+        font-size: 13.5px;
+    }
+
+    .page-banner .date-chip span:last-child {
+        font-size: 12.5px;
+    }
+
+    .date-box strong {
+        font-size: 14px;
+    }
+
+    .date-box span {
+        font-size: 13px;
+    }
+
+    /* ===== Kartu, panel, dan judul bagian ===== */
+    .panel-head h3,
+    .card-title,
+    .card-head h3,
+    .password-card h3,
+    .chart-head h3,
+    .pd-dash .card-title h3 {
+        font-size: 16.5px;
+        line-height: 1.35;
+    }
+
+    .pd-dash .card-title small {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+
+    .card-title,
+    .panel-head h3 {
+        overflow-wrap: anywhere;
+    }
+
+    .password-card p {
+        font-size: 13.5px;
+        line-height: 1.5;
+    }
+
+    .see-all,
+    .link-all,
+    .pd-dash .link-more {
+        font-size: 13.5px;
+    }
+
+    .footer,
+    .books-footer,
+    .table-foot .info {
+        font-size: 13.5px;
+        line-height: 1.5;
+    }
+
+    .empty {
+        font-size: 14.5px;
+        line-height: 1.5;
+    }
+
+    /* ===== Kartu statistik ===== */
+    .stat-card strong,
+    .stat-plain strong,
+    .stat-label,
+    .stats .stat-card h4,
+    .bk-stat-body h4,
+    .r-stat-label,
+    .pd-dash .stat-card h4 {
+        font-size: 14px;
+        line-height: 1.35;
+    }
+
+    .stat-card span,
+    .stat-plain span,
+    .stat-value,
+    .bk-stat-value,
+    .pd-dash .stat-value {
+        font-size: 26px;
+    }
+
+    .r-stat-value {
+        font-size: 24px;
+    }
+
+    .stat-sub,
+    .stat-delta,
+    .bk-stat-foot,
+    .r-stat-sub,
+    .stat-plain small,
+    .pd-dash .stat-delta {
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .bk-stat-body h4,
+    .bk-stat-foot {
+        overflow-wrap: anywhere;
+    }
+
+    /* ===== Tabel ===== */
+    .table {
+        font-size: 14px;
+    }
+
+    .table th,
+    .table td {
+        padding: 12px 13px;
+    }
+
+    .table th {
+        font-size: 12.5px;
+        letter-spacing: 0.3px;
+        line-height: 1.4;
+    }
+
+    .table td {
+        line-height: 1.5;
+    }
+
+    .bk-table,
+    .book-table {
+        font-size: 14px;
+    }
+
+    .bk-table thead th {
+        font-size: 12px;
+        letter-spacing: 0.3px;
+        padding: 14px;
+    }
+
+    .bk-table tbody td {
+        padding: 13px 14px;
+    }
+
+    .bk-table .sort {
+        font-size: 12px;
+    }
+
+    .bk-table .empty {
+        font-size: 14px;
+    }
+
+    .book-table th {
+        font-size: 12px;
+        letter-spacing: 0.3px;
+    }
+
+    .member-cell strong,
+    .book-cell strong {
+        font-size: 14px;
+    }
+
+    .member-cell small,
+    .book-cell small {
+        font-size: 12.5px;
+    }
+
+    .table-compact th,
+    .table-compact td {
+        font-size: 13.5px;
+        padding: 11px 12px;
+    }
+
+    .report-table th,
+    .report-table td {
+        font-size: 14px;
+        padding: 13px 11px;
+    }
+
+    .report-table th {
+        font-size: 12px;
+        letter-spacing: 0.3px;
+        line-height: 1.4;
+    }
+
+    .history-table th,
+    .history-table td {
+        font-size: 14px;
+        padding: 14px;
+    }
+
+    .history-table thead th {
+        font-size: 12px;
+    }
+
+    .denda-report-table {
+        font-size: 14px;
+        min-width: 1040px;
+    }
+
+    .denda-report-table .muted {
+        font-size: 12.5px;
+    }
+
+    .denda-report-table tfoot td {
+        font-size: 14px;
+    }
+
+    .denda-report-table tfoot .tfoot-label {
+        font-size: 12.5px;
+    }
+
+    .pd-dash .table {
+        font-size: 14px;
+    }
+
+    .pd-dash .table th {
+        font-size: 12.5px;
+    }
+
+    .table.roomy th,
+    .table.roomy td {
+        padding: 14px 16px;
+    }
+
+    .cover {
+        padding: 4px;
+        font-size: 13px;
+        letter-spacing: 0.5px;
+        line-height: 1.1;
+    }
+
+    .cover span {
+        display: block;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* Tabel lebar: kolom Aksi terakhir tetap terlihat saat digeser.
+       Hanya berlaku di layar >= 769px; di ponsel tabel memakai alur normal. */
+    @media (min-width: 769px) {
+        .table-scroll .bk-table thead th:last-child,
+        .books-table-wrap .bk-table thead th:last-child,
+        .table-wrap .bk-table thead th:last-child,
+        .table-box .bk-table thead th:last-child {
+            position: sticky;
+            right: 0;
+            z-index: 2;
+            background: #f8fbfe;
+            border-left: 1px solid var(--border);
+            box-shadow: -10px 0 12px -10px rgba(15, 23, 42, 0.32);
+        }
+
+        .table-scroll .bk-table tbody td:last-child,
+        .books-table-wrap .bk-table tbody td:last-child,
+        .table-wrap .bk-table tbody td:last-child,
+        .table-box .bk-table tbody td:last-child {
+            position: sticky;
+            right: 0;
+            z-index: 1;
+            background: #ffffff;
+            border-left: 1px solid var(--border);
+            box-shadow: -10px 0 12px -10px rgba(15, 23, 42, 0.32);
+        }
+
+        .table-scroll .bk-table tbody tr:hover td:last-child,
+        .books-table-wrap .bk-table tbody tr:hover td:last-child,
+        .table-wrap .bk-table tbody tr:hover td:last-child,
+        .table-box .bk-table tbody tr:hover td:last-child {
+            background: #fafcff;
+        }
+    }
+
+    /* ===== Tombol dan aksi ===== */
+    .btn-primary,
+    .btn-outline,
+    .btn-navy,
+    .btn-reset-soft,
+    .btn-search {
+        font-size: 14.5px;
+    }
+
+    .btn-sm {
+        font-size: 13px;
+        padding: 7px 13px;
+    }
+
+    .btn-detail,
+    .btn-book {
+        font-size: 13px;
+        padding: 7px 15px;
+    }
+
+    .btn-back {
+        font-size: 14px;
+    }
+
+    .btn-detail-outline,
+    .notif-detail {
+        font-size: 13px;
+        padding: 7px 13px;
+    }
+
+    .btn-lunas {
+        font-size: 12.5px;
+        padding: 7px 12px;
+    }
+
+    .btn-icon,
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 15px;
+    }
+
+    .icon-btn.sm {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+
+    .act {
+        width: 34px;
+        height: 34px;
+        font-size: 15px;
+    }
+
+    .actions .act.with-label {
+        min-width: 72px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+
+    .actions .act.with-label i {
+        font-size: 14px;
+    }
+
+    .actions.small .act {
+        width: 32px;
+        height: 32px;
+        font-size: 13px;
+    }
+
+    .btn-reset {
+        font-size: 14px;
+    }
+
+    .loan-tab {
+        font-size: 14px;
+        padding: 10px 15px;
+    }
+
+    .loan-tab-count {
+        font-size: 12px;
+        min-width: 24px;
+    }
+
+    /* ===== Formulir dan filter ===== */
+    .form-group label {
+        font-size: 14px;
+        line-height: 1.45;
+    }
+
+    .form-group label small {
+        font-size: 12.5px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 15px;
+        padding: 12px 14px;
+        line-height: 1.45;
+    }
+
+    .field label {
+        font-size: 12.5px;
+    }
+
+    .field input,
+    .field select {
+        font-size: 14px;
+    }
+
+    .field > i {
+        font-size: 16px;
+    }
+
+    /* Ruang cukup untuk teks rentang tanggal flatpickr di desktop. */
+    @media (min-width: 769px) {
+        .field-date {
+            min-width: 310px;
+        }
+
+        .field-date.range-field {
+            min-width: 330px;
+        }
+    }
+
+    .filter-search input,
+    .search-box input {
+        font-size: 14.5px;
+    }
+
+    .filter-search i {
+        font-size: 15px;
+    }
+
+    .filter-bar select,
+    .filter-select-row select {
+        font-size: 14px;
+        padding: 12px;
+    }
+
+    .clear-search {
+        font-size: 14px;
+    }
+
+    .select-field > span {
+        font-size: 12.5px;
+    }
+
+    .select-field select {
+        font-size: 14px;
+        padding: 11px 12px;
+    }
+
+    .select-sm {
+        font-size: 13.5px;
+        padding: 7px 11px;
+    }
+
+    .filter-check {
+        font-size: 14px;
+    }
+
+    .history-search input {
+        font-size: 14px;
+        padding: 11px 14px 11px 40px;
+    }
+
+    .history-search i {
+        font-size: 15px;
+    }
+
+    .history-filter select {
+        font-size: 14px;
+        padding: 11px 12px;
+    }
+
+    .field-error,
+    .form-group .field-error {
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    /* ===== Alert ===== */
+    .alert,
+    .alert-success,
+    .alert-error,
+    .alert-info {
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    /* ===== Pill, badge, dan label status ===== */
+    .badge,
+    .pill,
+    .status-pill,
+    .status-badge,
+    .tag,
+    .badge-active,
+    .badge-inactive,
+    .role-badge,
+    .badge-pill,
+    .denda-chip,
+    .hari-denda {
+        font-size: 12.5px;
+        line-height: 1.35;
+    }
+
+    .badge {
+        padding: 5px 11px;
+    }
+
+    .status-pill,
+    .status-badge,
+    .badge-active,
+    .badge-inactive,
+    .role-badge,
+    .badge-pill {
+        padding: 5px 12px;
+    }
+
+    .pill.sm {
+        font-size: 11.5px;
+    }
+
+    .badge-sm {
+        font-size: 12px;
+    }
+
+    .pd-dash .badge {
+        font-size: 12px;
+    }
+
+    /* ===== Pagination ===== */
+    .pagination .page,
+    .page-btn {
+        min-width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+
+    /* ===== Notifikasi ===== */
+    .notif-item {
+        gap: 14px;
+        padding: 15px 16px;
+    }
+
+    .notif-icon {
+        width: 46px;
+        height: 46px;
+        font-size: 21px;
+    }
+
+    .notif-body {
+        gap: 3px;
+        min-width: 0;
+    }
+
+    .notif-body strong {
+        font-size: 14.5px;
+        line-height: 1.4;
+        color: var(--ink);
+    }
+
+    .notif-body p {
+        margin: 1px 0 0;
+        font-size: 13.5px;
+        line-height: 1.55;
+        color: #44526b;
+        overflow-wrap: anywhere;
+    }
+
+    .notif-body span {
+        font-size: 13.5px;
+        line-height: 1.5;
+    }
+
+    .notif-body small {
+        font-size: 12.5px;
+    }
+
+    .notif-time {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 5px;
+        flex-shrink: 0;
+        font-size: 12.5px;
+        line-height: 1.45;
+        color: var(--muted);
+        white-space: nowrap;
+    }
+
+    .notif-time i {
+        margin-top: 1px;
+    }
+
+    .notif-chevron {
+        flex-shrink: 0;
+        font-size: 15px;
+        color: #c3cede;
+    }
+
+    .read-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 11px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: #64748b;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.35;
+        white-space: nowrap;
+    }
+
+    .notif-item.unread {
+        border-left: 3px solid var(--brand);
+        background: #f4f9ff;
+    }
+
+    .notif-item.unread .read-badge {
+        background: var(--brand-light);
+        color: var(--brand-dark);
+    }
+
+    .notif-meta-mobile {
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 7px;
+        font-size: 12.5px;
+        color: var(--muted);
+    }
+
+    .notif-detail {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid var(--brand);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--brand);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .notif-detail:hover {
+        background: var(--brand);
+        color: #fff;
+    }
+
+    /* ===== Katalog dan detail buku ===== */
+    .catalog-filter {
+        padding: 18px 20px;
+    }
+
+    .catalog-card h4 {
+        font-size: 14.5px;
+    }
+
+    .catalog-card small,
+    .book-card small {
+        font-size: 12.5px;
+    }
+
+    .book-card h4 {
+        font-size: 13.5px;
+    }
+
+    .catalog-grid .book-card h4 {
+        font-size: 14.5px;
+    }
+
+    .kategori-body h3 {
+        font-size: 20px;
+    }
+
+    .kategori-body span {
+        font-size: 14px;
+    }
+
+    .kategori-open {
+        font-size: 14.5px;
+    }
+
+    .kategori-cover {
+        font-size: 46px;
+    }
+
+    .catalog-section-head h2 {
+        font-size: 20px;
+    }
+
+    .catalog-section-head span {
+        font-size: 14px;
+    }
+
+    .detail-info h1 {
+        font-size: 28px;
+    }
+
+    .detail-info > h2 {
+        font-size: 16px;
+    }
+
+    .detail-meta dt {
+        font-size: 12.5px;
+    }
+
+    .detail-meta dd {
+        font-size: 14.5px;
+    }
+
+    .synopsis h3 {
+        font-size: 15.5px;
+    }
+
+    .synopsis-box {
+        font-size: 14.5px;
+        line-height: 1.7;
+    }
+
+    .loan-book-info h2 {
+        font-size: 18px;
+    }
+
+    .loan-book-info .author {
+        font-size: 13.5px;
+    }
+
+    .info-box h4 {
+        font-size: 14px;
+    }
+
+    .info-box ul {
+        font-size: 13.5px;
+        line-height: 1.75;
+    }
+
+    /* ===== Profil siswa ===== */
+    .profile-card div span {
+        font-size: 13px;
+    }
+
+    .profile-detail dt {
+        font-size: 12.5px;
+    }
+
+    .profile-detail dd {
+        font-size: 14.5px;
+    }
+
+    .profile-grid .profile-card h3 {
+        font-size: 19px;
+    }
+
+    .profile-grid .profile-card .role {
+        font-size: 13.5px;
+    }
+
+    .mini-info li {
+        font-size: 13.5px;
+    }
+
+    .info-row {
+        font-size: 14px;
+    }
+
+    .info-row dt {
+        width: 200px;
+    }
+
+    /* ===== Dashboard admin ===== */
+    .recent-list a {
+        padding: 11px 13px;
+    }
+
+    .recent-no {
+        font-size: 13px;
+    }
+
+    .recent-info span {
+        font-size: 12.5px;
+    }
+
+    /* ===== Dashboard pustakawan ===== */
+    .pd-dash .legend li {
+        font-size: 13.5px;
+    }
+
+    .pd-dash .legend .val {
+        font-size: 13px;
+    }
+
+    .pd-dash .donut-hole small {
+        font-size: 12px;
+    }
+
+    .pd-dash .quick .q-label {
+        font-size: 14px;
+    }
+
+    .pd-dash .announce-head strong {
+        font-size: 14px;
+    }
+
+    .pd-dash .announce-head small {
+        font-size: 12px;
+    }
+
+    .pd-dash .announce p {
+        font-size: 13.5px;
+        line-height: 1.55;
+    }
+
+    /* ===== Riwayat dan kartu peminjaman ===== */
+    .history-card {
+        padding: 15px;
+    }
+
+    .history-book small,
+    .history-card-top small {
+        font-size: 12.5px;
+    }
+
+    .history-dates > div {
+        font-size: 13.5px;
+    }
+
+    .loan-row-body strong {
+        font-size: 15px;
+    }
+
+    .loan-row-body small {
+        font-size: 12.5px;
+    }
+
+    .loan-book {
+        font-size: 14px;
+    }
+
+    .dates {
+        font-size: 13px;
+    }
+
+    .member-list > li {
+        padding: 13px;
+    }
+
+    .m-info strong {
+        font-size: 15px;
+    }
+
+    .m-info small {
+        font-size: 13px;
+    }
+
+    .member-list > li.empty {
+        font-size: 14px;
+    }
+
+    .avatar.lg {
+        width: 48px;
+        height: 48px;
+        font-size: 21px;
+    }
+
+    .list-card .filter-bar .btn-primary {
+        font-size: 14px;
+    }
+
+    /* ===== Laporan dan statistik ===== */
+    .legend li {
+        font-size: 13.5px;
+    }
+
+    .d-total,
+    .d-total-m {
+        font-size: 12px;
+    }
+
+    .tab {
+        font-size: 13.5px;
+    }
+
+    .report-tabs-card .tab {
+        font-size: 14px;
+    }
+
+    .periode-label,
+    .periode-info {
+        font-size: 13.5px;
+    }
+
+    .periode-tab {
+        font-size: 13px;
+    }
+
+    .trx-label {
+        font-size: 13.5px;
+    }
+
+    .trx-sub {
+        font-size: 12px;
+    }
+
+    .trx-item strong {
+        font-size: 18px;
+    }
+
+    .rekap-title {
+        font-size: 15px;
+    }
+
+    .rekap-periode {
+        font-size: 12.5px;
+    }
+
+    .rekap-hint {
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .denda-mini-item span {
+        font-size: 14px;
+    }
+
+    .denda-mini-item strong {
+        font-size: 17px;
+    }
+
+    /* ===== Layar laptop kecil dan tablet ===== */
+    @media (max-width: 992px) {
+        .page-title h1,
+        .page-title h2 {
+            font-size: 22px;
+        }
+
+        .info-row dt {
+            width: 185px;
+        }
+    }
+
+    /* ===== Layar ponsel ===== */
+    @media (max-width: 768px) {
+        body {
+            padding-bottom: 76px;
+        }
+
+        .app-content-body {
+            padding: 20px 16px;
+        }
+
+        .topbar {
+            padding: 10px 16px;
+        }
+
+        .bottom-nav {
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+        }
+
+        .bottom-nav a {
+            flex: 1 1 0;
+            min-width: 0;
+            padding: 6px 2px;
+            gap: 4px;
+            font-size: clamp(9.5px, 2.65vw, 11px);
+            letter-spacing: -0.1px;
+            line-height: 1.15;
+            text-align: center;
+        }
+
+        /* Label panjang seperti "Pengembalian" jangan dipotong di tengah kata. */
+        .bottom-nav a span {
+            max-width: 100%;
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .bottom-nav a i {
+            font-size: 21px;
+        }
+
+        .page-title {
+            padding: 16px 17px;
+            gap: 12px;
+        }
+
+        .page-title h1,
+        .page-title h2 {
+            font-size: 21px;
+        }
+
+        .page-title p {
+            font-size: 13.5px;
+        }
+
+        .page-title > i {
+            width: 44px;
+            height: 44px;
+            font-size: 20px;
+        }
+
+        .hero {
+            padding: 20px;
+        }
+
+        .hero h1 {
+            font-size: 21px;
+        }
+
+        .hero p {
+            font-size: 14px;
+        }
+
+        .pd-dash .page-head h2 {
+            font-size: 21px;
+        }
+
+        .pd-dash .page-head p {
+            font-size: 13.5px;
+        }
+
+        .banner-text h2 {
+            font-size: 20px;
+        }
+
+        .banner-text p {
+            font-size: 13.5px;
+        }
+
+        .filter-bar {
+            padding: 14px;
+        }
+
+        .table,
+        .bk-table,
+        .book-table,
+        .report-table th,
+        .report-table td {
+            font-size: 13.5px;
+        }
+
+        .table th,
+        .book-table th,
+        .report-table th {
+            font-size: 12px;
+        }
+
+        .stat-card span,
+        .stat-plain span,
+        .stat-value,
+        .bk-stat-value,
+        .r-stat-value,
+        .pd-dash .stat-value {
+            font-size: 24px;
+        }
+
+        .history-table {
+            font-size: 13.5px;
+        }
+
+        .loan-tab {
+            font-size: 13.5px;
+        }
+
+        .denda-report-table {
+            min-width: 860px;
+        }
+
+        .notif-item {
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .notif-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+
+        .notif-time,
+        .notif-status,
+        .notif-detail,
+        .notif-chevron {
+            display: none;
+        }
+
+        .notif-meta-mobile {
+            display: flex;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .page-title h1,
+        .page-title h2 {
+            font-size: 20px;
+        }
+
+        .bottom-nav a {
+            padding: 6px 2px;
+            font-size: clamp(9px, 2.65vw, 10.5px);
+        }
+
+        .bottom-nav a i {
+            font-size: 20px;
+        }
+
+        .notif-body strong {
+            font-size: 14px;
+        }
+    }
+}
