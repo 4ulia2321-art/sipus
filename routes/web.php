@@ -143,6 +143,32 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('area:pustakawan')->prefix('pustakawan')->name('pustakawan.')->group(function () {
         Route::get('/', [DashboardController::class, 'pustakawanDashboard'])->name('dashboard');
 
+        // Data buku
+        Route::get('/buku', [PustakawanController::class, 'buku'])->name('buku');
+        Route::get('/buku/create', [PustakawanController::class, 'bukuCreate'])->name('buku.create');
+        Route::post('/buku', [PustakawanController::class, 'bukuStore'])->name('buku.store');
+        Route::get('/buku/{id}', [PustakawanController::class, 'bukuShow'])->name('buku.show');
+        Route::get('/buku/{id}/edit', [PustakawanController::class, 'bukuEdit'])->name('buku.edit');
+        Route::put('/buku/{id}', [PustakawanController::class, 'bukuUpdate'])->name('buku.update');
+        Route::delete('/buku/{id}', [PustakawanController::class, 'bukuDestroy'])->name('buku.destroy');
+
+        // Data anggota (siswa)
+        Route::get('/anggota', [PustakawanController::class, 'anggota'])->name('anggota');
+        Route::get('/anggota/create', [PustakawanController::class, 'anggotaCreate'])->name('anggota.create');
+        Route::post('/anggota', [PustakawanController::class, 'anggotaStore'])->name('anggota.store');
+        Route::get('/anggota/{id}', [PustakawanController::class, 'anggotaShow'])->name('anggota.show');
+        Route::get('/anggota/{id}/edit', [PustakawanController::class, 'anggotaEdit'])->name('anggota.edit');
+        Route::put('/anggota/{id}', [PustakawanController::class, 'anggotaUpdate'])->name('anggota.update');
+        Route::delete('/anggota/{id}', [PustakawanController::class, 'anggotaDestroy'])->name('anggota.destroy');
+
+        // Data kelas
+        Route::get('/kelas', [PustakawanController::class, 'kelas'])->name('kelas');
+        Route::get('/kelas/create', [PustakawanController::class, 'kelasCreate'])->name('kelas.create');
+        Route::post('/kelas', [PustakawanController::class, 'kelasStore'])->name('kelas.store');
+        Route::get('/kelas/{id}/edit', [PustakawanController::class, 'kelasEdit'])->name('kelas.edit');
+        Route::put('/kelas/{id}', [PustakawanController::class, 'kelasUpdate'])->name('kelas.update');
+        Route::delete('/kelas/{id}', [PustakawanController::class, 'kelasDestroy'])->name('kelas.destroy');
+
         // Pengajuan peminjaman: periksa, setujui, tolak
         Route::get('/pengajuan', [PengajuanController::class, 'index'])->name('pengajuan');
         Route::get('/persetujuan', [PengajuanController::class, 'persetujuan'])->name('persetujuan');

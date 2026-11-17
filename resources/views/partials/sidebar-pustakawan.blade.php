@@ -13,6 +13,15 @@
                 <i class="bi {{ request()->routeIs('pustakawan.dashboard') ? 'bi-house-door-fill' : 'bi-house-door' }}"></i>
                 <span>Dashboard</span>
             </a>
+            <a href="{{ route('pustakawan.buku') }}" class="{{ request()->routeIs('pustakawan.buku*') ? 'active' : '' }}">
+                <i class="bi bi-book"></i> <span>Data Buku</span>
+            </a>
+            <a href="{{ route('pustakawan.anggota') }}" class="{{ request()->routeIs('pustakawan.anggota*') ? 'active' : '' }}">
+                <i class="bi bi-people"></i> <span>Data Anggota</span>
+            </a>
+            <a href="{{ route('pustakawan.kelas') }}" class="{{ request()->routeIs('pustakawan.kelas*') ? 'active' : '' }}">
+                <i class="bi bi-diagram-3"></i> <span>Data Kelas</span>
+            </a>
             <a href="{{ route('pustakawan.pengajuan') }}" class="{{ request()->routeIs('pustakawan.pengajuan*') ? 'active' : '' }}">
                 <i class="bi bi-file-earmark-check"></i> <span>Pengajuan Peminjaman</span>
             </a>

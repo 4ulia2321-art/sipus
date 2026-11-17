@@ -125,6 +125,7 @@
                             <td><span class="pill {{ $statusClass[$b['status']] ?? 'green' }}">{{ $b['status'] }}</span></td>
                             <td>
                                 <div class="actions">
+                                    <a href="{{ route('pustakawan.buku.show', $b['id']) }}" class="act view" title="Detail"><i class="bi bi-eye"></i></a>
                                     <a href="{{ route('pustakawan.buku.edit', $b['id']) }}" class="act edit" title="Edit"><i class="bi bi-pencil"></i></a>
                                     <form action="{{ route('pustakawan.buku.destroy', $b['id']) }}" method="POST"
                                           onsubmit="return confirm('Hapus buku &quot;{{ $b['judul'] }}&quot;?')">

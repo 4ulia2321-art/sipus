@@ -906,11 +906,13 @@ class PustakawanController extends Controller
         $paginator = $query->orderBy('nama_siswa')->paginate(10)->withQueryString();
         $start = ($paginator->currentPage() - 1) * $paginator->perPage();
 
-        $dipinjam = array_flip(
-            DB::table('peminjaman')->where('status', 'Dipinjam')->pluck('id_siswa')->all()
+        // Anggota yang sudah memiliki riwayat peminjaman apa pun tidak boleh
+        // dihapus agar data transaksi lama tetap utuh.
+        $punyaRiwayat = array_flip(
+            DB::table('peminjaman')->distinct()->pluck('id_siswa')->all()
         );
 
-        $anggota = $paginator->through(function ($r, $key) use ($start, $dipinjam) {
+        $anggota = $paginator->through(function ($r, $key) use ($start, $punyaRiwayat) {
             return [
                 'id'         => $r->id_siswa,
                 'no'         => $start + $key + 1,
@@ -922,7 +924,7 @@ class PustakawanController extends Controller
                 'kelas'      => $r->kelas,
                 'jenis'      => 'Siswa',
                 'status'     => 'Aktif',
-                'bisa_hapus' => ! isset($dipinjam[$r->id_siswa]),
+                'bisa_hapus' => ! isset($punyaRiwayat[$r->id_siswa]),
             ];
         });
 
@@ -1104,16 +1106,12 @@ class PustakawanController extends Controller
         $anggota = DB::table('siswa')->where('id_siswa', $id)->first();
         abort_if(! $anggota, 404);
 
-        if (DB::table('peminjaman')->where('id_siswa', $anggota->id_siswa)->where('status', 'Dipinjam')->exists()) {
+        if (DB::table('peminjaman')->where('id_siswa', $anggota->id_siswa)->exists()) {
             return redirect(route('pustakawan.anggota'))
-                ->with('error', 'Anggota tidak dapat dihapus karena masih memiliki peminjaman aktif.');
+                ->with('error', 'Anggota tidak dapat dihapus karena memiliki riwayat peminjaman. Riwayat transaksi harus tetap tersimpan.');
         }
 
         DB::transaction(function () use ($anggota) {
-            $pmIds = DB::table('peminjaman')->where('id_siswa', $anggota->id_siswa)->pluck('id_peminjaman');
-            DB::table('pengembalian')->whereIn('id_peminjaman', $pmIds)->delete();
-            DB::table('detail_peminjaman')->whereIn('id_peminjaman', $pmIds)->delete();
-            DB::table('peminjaman')->whereIn('id_peminjaman', $pmIds)->delete();
             DB::table('siswa')->where('id_siswa', $anggota->id_siswa)->delete();
             DB::table('t_user')->where('id_user', $anggota->id_user)->delete();
         });
@@ -1180,8 +1178,20 @@ class PustakawanController extends Controller
     {
         $this->ensureAdmin();
 
+        $request->merge([
+            'nama_kelas' => trim((string) $request->input('nama_kelas')),
+        ]);
+
         $data = $request->validate([
-            'nama_kelas' => ['required', 'string', 'max:50'],
+            'nama_kelas' => [
+                'required', 'string', 'max:50',
+                new UniqueNormalized(
+                    'kelas',
+                    'nama_kelas',
+                    message: 'Nama kelas sudah ada. Gunakan nama kelas lain.',
+                    keyColumn: 'id_kelas'
+                ),
+            ],
             'tingkat'    => ['nullable', 'string', 'max:20'],
             'wali_kelas' => ['nullable', 'string', 'max:100'],
         ]);
@@ -1213,8 +1223,21 @@ class PustakawanController extends Controller
         $kelas = DB::table('kelas')->where('id_kelas', $id)->first();
         abort_if(! $kelas, 404);
 
+        $request->merge([
+            'nama_kelas' => trim((string) $request->input('nama_kelas')),
+        ]);
+
         $data = $request->validate([
-            'nama_kelas' => ['required', 'string', 'max:50'],
+            'nama_kelas' => [
+                'required', 'string', 'max:50',
+                new UniqueNormalized(
+                    'kelas',
+                    'nama_kelas',
+                    $id,
+                    'Nama kelas sudah ada. Gunakan nama kelas lain.',
+                    'id_kelas'
+                ),
+            ],
             'tingkat'    => ['nullable', 'string', 'max:20'],
             'wali_kelas' => ['nullable', 'string', 'max:100'],
         ]);
@@ -1332,6 +1355,48 @@ class PustakawanController extends Controller
         $daftarStatus   = ['Tersedia', 'Hampir Habis', 'Habis'];
 
         return view('pustakawan.buku.index', compact('buku', 'stats', 'daftarKategori', 'daftarTahun', 'daftarStatus'));
+    }
+
+    public function bukuShow($id)
+    {
+        $this->ensureAdmin();
+
+        $buku = DB::table('buku as b')
+            ->leftJoin('kategori_buku as k', 'k.id_kategori', '=', 'b.id_kategori')
+            ->select('b.*', 'k.nama_kategori')
+            ->where('b.id_buku', $id)
+            ->first();
+
+        abort_if(! $buku, 404);
+
+        $totalPinjam = DB::table('detail_peminjaman')->where('id_buku', $id)->count();
+
+        $sedangDipinjam = DB::table('detail_peminjaman as dp')
+            ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
+            ->where('dp.id_buku', $id)
+            ->where('p.status', 'Dipinjam')
+            ->count();
+
+        $riwayat = DB::table('detail_peminjaman as dp')
+            ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
+            ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
+            ->leftJoin('pengembalian as pg', 'pg.id_peminjaman', '=', 'p.id_peminjaman')
+            ->where('dp.id_buku', $id)
+            ->select(
+                's.nama_siswa',
+                's.kelas',
+                'p.tanggal_pinjam',
+                'p.tanggal_jatuh_tempo',
+                'p.status',
+                'pg.tanggal_kembali'
+            )
+            ->orderByDesc('p.id_peminjaman')
+            ->limit(10)
+            ->get();
+
+        $bisaHapus = $totalPinjam === 0;
+
+        return view('pustakawan.buku.show', compact('buku', 'totalPinjam', 'sedangDipinjam', 'riwayat', 'bisaHapus'));
     }
 
     public function bukuCreate()

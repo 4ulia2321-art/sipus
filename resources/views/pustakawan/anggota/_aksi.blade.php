@@ -6,6 +6,8 @@
           onsubmit="return confirm('Hapus anggota &quot;{{ $a['nama'] }}&quot;?')">
         @csrf
         @method('DELETE')
-        <button type="submit" class="act del" title="Hapus"><i class="bi bi-trash-fill"></i></button>
+        <button type="submit" class="act del" title="{{ $a['bisa_hapus'] ? 'Hapus' : 'Tidak dapat dihapus karena memiliki riwayat peminjaman' }}" @disabled(! $a['bisa_hapus'])>
+            <i class="bi bi-trash-fill"></i>
+        </button>
     </form>
 </div>
