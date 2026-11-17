@@ -808,8 +808,16 @@ class AdminController extends Controller
         abort_if(! $buku, 404);
 
         if (DB::table('detail_peminjaman')->where('id_buku', $id)->exists()) {
+            $adaTransaksiAktif = DB::table('detail_peminjaman as dp')
+                ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
+                ->where('dp.id_buku', $id)
+                ->whereNotIn('p.status', ['Dikembalikan', 'Ditolak'])
+                ->exists();
+
             return redirect()->route('admin.buku')
-                ->with('error', 'Buku tidak dapat dihapus karena memiliki riwayat peminjaman.');
+                ->with('error', $adaTransaksiAktif
+                    ? 'Buku tidak dapat dihapus karena masih memiliki transaksi peminjaman aktif.'
+                    : 'Buku tidak dapat dihapus karena memiliki riwayat peminjaman. Riwayat transaksi harus tetap tersimpan.');
         }
 
         DB::table('buku')->where('id_buku', $id)->delete();

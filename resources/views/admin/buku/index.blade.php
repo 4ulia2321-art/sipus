@@ -125,12 +125,14 @@
                             <td><span class="pill {{ $statusClass[$b['status']] ?? 'green' }}">{{ $b['status'] }}</span></td>
                             <td>
                                 <div class="actions">
-                                    <a href="{{ route('admin.buku.edit', $b['id']) }}" class="act edit" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    <a href="{{ route('admin.buku.edit', $b['id']) }}" class="act edit" title="Edit buku" aria-label="Edit buku {{ $b['judul'] }}"><i class="bi bi-pencil"></i></a>
                                     <form action="{{ route('admin.buku.destroy', $b['id']) }}" method="POST"
                                           onsubmit="return confirm('Hapus buku &quot;{{ $b['judul'] }}&quot;?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="act del" title="Hapus" @disabled(! $b['bisa_hapus'])>
+                                        <button type="submit" class="act del"
+                                                title="{{ $b['bisa_hapus'] ? 'Hapus buku' : 'Tidak dapat dihapus karena masih memiliki transaksi peminjaman' }}"
+                                                aria-label="Hapus buku {{ $b['judul'] }}" @disabled(! $b['bisa_hapus'])>
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
