@@ -324,6 +324,21 @@
     transform: none;
 }
 
+/* Tombol aksi berlabel pada tabel Kelola Buku */
+.actions .act.with-label {
+    width: auto;
+    min-width: 66px;
+    padding: 0 10px;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.actions .act.with-label i {
+    font-size: 13px;
+}
+
 /* ===== Footer tabel ===== */
 .table-foot {
     display: flex;

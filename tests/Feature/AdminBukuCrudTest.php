@@ -84,14 +84,23 @@ class AdminBukuCrudTest extends TestCase
         $admin = $this->buatUser('Admin', 'admin-tombol');
         $idKategori = $this->buatKategori('Pelajaran');
         $idBuku = $this->buatBuku($idKategori, 'Buku Tanpa Riwayat', 'TBL-001');
+        $idBukuKedua = $this->buatBuku($idKategori, 'Buku Tanpa Riwayat 2', 'TBL-002');
 
-        $this->actingAs($admin)->get('/admin/buku')
-            ->assertOk()
+        $response = $this->actingAs($admin)->get('/admin/buku');
+
+        $response->assertOk()
+            ->assertSee('<th>Aksi</th>', false)
             ->assertSee(route('admin.buku.edit', $idBuku), false)
+            ->assertSee(route('admin.buku.edit', $idBukuKedua), false)
             ->assertSee(route('admin.buku.destroy', $idBuku), false)
+            ->assertSee(route('admin.buku.destroy', $idBukuKedua), false)
             ->assertSee('Edit buku')
             ->assertSee('Hapus buku')
             ->assertSee('return confirm(', false);
+
+        // Tombol Edit dan Hapus harus tampil pada setiap baris data.
+        $this->assertSame(2, substr_count($response->getContent(), '<span>Edit</span>'));
+        $this->assertSame(2, substr_count($response->getContent(), '<span>Hapus</span>'));
     }
 
     public function test_admin_bisa_mengubah_buku_dan_perubahan_tersimpan(): void
