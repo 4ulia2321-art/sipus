@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             ContohDataSeeder::class,
             DataAnggotaMassalSeeder::class,
             DataDummySeeder::class,
+            DataTransaksiHistorisSeeder::class,
         ]);
     }
 }

@@ -15,6 +15,24 @@ use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
+    /**
+     * Nama bulan untuk pilihan filter laporan Admin.
+     */
+    private const BULAN = [
+        1 => 'Januari',
+        2 => 'Februari',
+        3 => 'Maret',
+        4 => 'April',
+        5 => 'Mei',
+        6 => 'Juni',
+        7 => 'Juli',
+        8 => 'Agustus',
+        9 => 'September',
+        10 => 'Oktober',
+        11 => 'November',
+        12 => 'Desember',
+    ];
+
     private function ensureAdmin(): void
     {
         abort_unless(Auth::user()?->role === 'Admin', 403);
@@ -1735,18 +1753,37 @@ class AdminController extends Controller
     {
         $this->ensureAdmin();
 
-        // Periode
-        $mulai = $request->filled('mulai')
-            ? Carbon::parse($request->input('mulai'))->startOfDay()
-            : now()->subDays(29)->startOfDay();
+        // Periode: seluruh periode (default), filter bulan/tahun, atau
+        // rentang tanggal kustom. Tautan lama yang hanya mengirim mulai
+        // dan selesai tetap dibaca sebagai mode kustom.
+        $periode = $this->periodeLaporan($request);
+        $mode = $periode['mode'];
+        $bulan = $periode['bulan'];
+        $tahun = $periode['tahun'];
+        $mulai = $periode['mulai'];
+        $selesai = $periode['selesai'];
+        $periodeLabel = $periode['label'];
+        $tahunTersedia = $periode['tahunTersedia'];
+        $daftarBulan = $periode['daftarBulan'];
 
-        $selesai = $request->filled('selesai')
-            ? Carbon::parse($request->input('selesai'))->endOfDay()
-            : now()->endOfDay();
+        // Terapkan periode ke query sesuai mode yang dipilih. Mode "semua"
+        // sengaja tidak menambahkan kondisi tanggal agar seluruh riwayat
+        // transaksi langsung terhitung.
+        $terapkanPeriode = function ($query, string $kolom) use ($mode, $bulan, $tahun, $mulai, $selesai) {
+            if ($mode === 'filter') {
+                if ($bulan !== null) {
+                    $query->whereMonth($kolom, $bulan);
+                }
 
-        if ($mulai->gt($selesai)) {
-            $mulai = $selesai->copy()->startOfDay();
-        }
+                if ($tahun !== null) {
+                    $query->whereYear($kolom, $tahun);
+                }
+            } elseif ($mode === 'kustom') {
+                $query->whereBetween($kolom, [$mulai->toDateString(), $selesai->toDateString()]);
+            }
+
+            return $query;
+        };
 
         // Tab
         $tab = $request->input('tab');
@@ -1760,26 +1797,24 @@ class AdminController extends Controller
         $stok = StokBuku::ringkasan();
 
         $stat = [
-            'buku'         => $stok['total'],
-            'tersedia'     => $stok['tersedia'],
-            'dipinjam'     => $stok['dipinjam'],
-            'anggota'      => DB::table('siswa')->count(),
-            'peminjaman'   => DB::table('peminjaman')->whereBetween('tanggal_pinjam', [$mulai, $selesai])->count(),
-            'pengembalian' => DB::table('pengembalian')->whereBetween('tanggal_kembali', [$mulai, $selesai])->count(),
+            'buku' => $stok['total'],
+            'tersedia' => $stok['tersedia'],
+            'dipinjam' => $stok['dipinjam'],
+            'anggota' => DB::table('siswa')->count(),
+            'peminjaman' => $terapkanPeriode(DB::table('peminjaman'), 'tanggal_pinjam')->count(),
+            'pengembalian' => $terapkanPeriode(DB::table('pengembalian'), 'tanggal_kembali')->count(),
         ];
 
         // Rekap per judul mengikuti periode laporan yang sedang dipilih.
-        $barisJudul = DB::table('detail_peminjaman as dp')
+        $queryJudul = DB::table('detail_peminjaman as dp')
             ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
-            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
-            ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
+            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku');
+
+        $barisJudul = $terapkanPeriode($queryJudul, 'p.tanggal_pinjam')
             ->select('p.id_peminjaman', 'b.judul', 'p.tanggal_pinjam', 'dp.jumlah')
             ->get();
 
         [$rekapJudul, $kolomJudul] = RekapJudul::susun($barisJudul);
-
-        $periodeLabel = $mulai->translatedFormat('d M Y')
-            .' – '.$selesai->translatedFormat('d M Y');
 
         // Grafik batang peminjaman (7 / 30 hari)
         $grafik = in_array((int) $request->input('grafik'), [7, 30], true) ? (int) $request->input('grafik') : 7;
@@ -1801,11 +1836,12 @@ class AdminController extends Controller
 
         // Donut kategori buku terbanyak dipinjam
         $palette = ['#5b9bec', '#34c38f', '#f6b93b', '#e05a6b', '#8e6bd6', '#28b6c8'];
-        $rawKategori = DB::table('detail_peminjaman as dp')
+        $queryKategori = DB::table('detail_peminjaman as dp')
             ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
             ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
-            ->leftJoin('kategori_buku as k', 'k.id_kategori', '=', 'b.id_kategori')
-            ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
+            ->leftJoin('kategori_buku as k', 'k.id_kategori', '=', 'b.id_kategori');
+
+        $rawKategori = $terapkanPeriode($queryKategori, 'p.tanggal_pinjam')
             ->selectRaw("COALESCE(k.nama_kategori, 'Lainnya') as nama, SUM(dp.jumlah) as total")
             ->groupBy('nama')
             ->orderByDesc('total')
@@ -1815,10 +1851,10 @@ class AdminController extends Controller
         $totalKategori = (float) $rawKategori->sum('total');
 
         $kategori = $rawKategori->values()->map(fn ($r, $i) => [
-            'nama'   => $r->nama,
-            'total'  => (int) $r->total,
+            'nama' => $r->nama,
+            'total' => (int) $r->total,
             'persen' => $totalKategori > 0 ? round($r->total / $totalKategori * 100, 1) : 0,
-            'warna'  => $palette[$i % count($palette)],
+            'warna' => $palette[$i % count($palette)],
         ])->all();
 
         // Subquery judul buku per peminjaman
@@ -1833,12 +1869,11 @@ class AdminController extends Controller
         if ($tab === 'pengembalian') {
             $kolom = ['Tanggal Pinjam', 'Tanggal Kembali'];
 
-            $rows = DB::table('pengembalian as pg')
+            $rows = $terapkanPeriode(DB::table('pengembalian as pg'), 'pg.tanggal_kembali')
                 ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->select('pg.id_pengembalian', 's.nama_siswa', 'p.tanggal_pinjam', 'pg.tanggal_kembali')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('pg.tanggal_kembali', [$mulai, $selesai])
                 ->orderByDesc('pg.tanggal_kembali')
                 ->orderByDesc('pg.id_pengembalian')
                 ->paginate(10)
@@ -1846,17 +1881,17 @@ class AdminController extends Controller
 
             $rows->through(fn ($r) => [
                 'anggota' => $r->nama_siswa,
-                'buku'    => $r->buku ?: '-',
-                'tgl1'    => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
-                'tgl2'    => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
-                'status'  => 'Dikembalikan',
-                'kelas'   => 'badge-success',
+                'buku' => $r->buku ?: '-',
+                'tgl1' => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
+                'tgl2' => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
+                'status' => 'Dikembalikan',
+                'kelas' => 'badge-success',
             ]);
         } elseif ($tab === 'keterlambatan') {
             $kolom = ['Jatuh Tempo', 'Terlambat'];
             $today = now()->startOfDay();
 
-            $rows = DB::table('peminjaman as p')
+            $queryTerlambat = DB::table('peminjaman as p')
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_jatuh_tempo')
                 ->selectSub($bukuSub, 'buku')
@@ -1866,7 +1901,9 @@ class AdminController extends Controller
                     $q->select(DB::raw(1))
                         ->from('pengembalian as pg')
                         ->whereColumn('pg.id_peminjaman', 'p.id_peminjaman');
-                })
+                });
+
+            $rows = $terapkanPeriode($queryTerlambat, 'p.tanggal_pinjam')
                 ->orderBy('p.tanggal_jatuh_tempo')
                 ->paginate(10)
                 ->withQueryString();
@@ -1876,22 +1913,21 @@ class AdminController extends Controller
 
                 return [
                     'anggota' => $r->nama_siswa,
-                    'buku'    => $r->buku ?: '-',
-                    'tgl1'    => Carbon::parse($r->tanggal_jatuh_tempo)->translatedFormat('d M Y'),
-                    'tgl2'    => $hari . ' hari',
-                    'status'  => 'Terlambat',
-                    'kelas'   => 'badge-danger',
+                    'buku' => $r->buku ?: '-',
+                    'tgl1' => Carbon::parse($r->tanggal_jatuh_tempo)->translatedFormat('d M Y'),
+                    'tgl2' => $hari.' hari',
+                    'status' => 'Terlambat',
+                    'kelas' => 'badge-danger',
                 ];
             });
         } elseif ($tab === 'transaksi') {
             $kolom = ['Tgl Pinjam', 'Tgl Kembali'];
 
-            $rows = DB::table('peminjaman as p')
+            $rows = $terapkanPeriode(DB::table('peminjaman as p'), 'p.tanggal_pinjam')
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->leftJoin('pengembalian as pg', 'pg.id_peminjaman', '=', 'p.id_peminjaman')
                 ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_pinjam', 'p.tanggal_jatuh_tempo', 'p.status', 'pg.tanggal_kembali', 'pg.denda', 'pg.status_bayar')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
                 ->orderByDesc('p.tanggal_pinjam')
                 ->orderByDesc('p.id_peminjaman')
                 ->paginate(10)
@@ -1906,37 +1942,38 @@ class AdminController extends Controller
                 }
 
                 return [
-                    'anggota'      => $r->nama_siswa,
-                    'buku'         => $r->buku ?: '-',
-                    'tgl1'         => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
-                    'tgl2'         => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
-                    'status'       => $status,
-                    'kelas'        => $this->statusBadgeClass($status),
-                    'denda'        => (float) ($r->denda ?? 0),
+                    'anggota' => $r->nama_siswa,
+                    'buku' => $r->buku ?: '-',
+                    'tgl1' => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
+                    'tgl2' => $r->tanggal_kembali ? Carbon::parse($r->tanggal_kembali)->translatedFormat('d M Y') : '-',
+                    'status' => $status,
+                    'kelas' => $this->statusBadgeClass($status),
+                    'denda' => (float) ($r->denda ?? 0),
                     'status_bayar' => $r->status_bayar ?: 'Belum Lunas',
                 ];
             });
 
             $ringkasTransaksi = [
                 'total' => $rows->total(),
-                'total_denda' => (float) DB::table('pengembalian as pg')
-                    ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
-                    ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
-                    ->sum('pg.denda'),
-                'belum' => (float) DB::table('pengembalian as pg')
-                    ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
-                    ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
-                    ->where('pg.status_bayar', 'Belum Lunas')
-                    ->sum('pg.denda'),
+                'total_denda' => (float) $terapkanPeriode(
+                    DB::table('pengembalian as pg')
+                        ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman'),
+                    'p.tanggal_pinjam'
+                )->sum('pg.denda'),
+                'belum' => (float) $terapkanPeriode(
+                    DB::table('pengembalian as pg')
+                        ->join('peminjaman as p', 'p.id_peminjaman', '=', 'pg.id_peminjaman')
+                        ->where('pg.status_bayar', 'Belum Lunas'),
+                    'p.tanggal_pinjam'
+                )->sum('pg.denda'),
             ];
         } else {
             $kolom = ['Tanggal Pinjam', 'Jatuh Tempo'];
 
-            $rows = DB::table('peminjaman as p')
+            $rows = $terapkanPeriode(DB::table('peminjaman as p'), 'p.tanggal_pinjam')
                 ->join('siswa as s', 's.id_siswa', '=', 'p.id_siswa')
                 ->select('p.id_peminjaman', 's.nama_siswa', 'p.tanggal_pinjam', 'p.tanggal_jatuh_tempo', 'p.status')
                 ->selectSub($bukuSub, 'buku')
-                ->whereBetween('p.tanggal_pinjam', [$mulai, $selesai])
                 ->orderByDesc('p.tanggal_pinjam')
                 ->orderByDesc('p.id_peminjaman')
                 ->paginate(10)
@@ -1944,19 +1981,166 @@ class AdminController extends Controller
 
             $rows->through(fn ($r) => [
                 'anggota' => $r->nama_siswa,
-                'buku'    => $r->buku ?: '-',
-                'tgl1'    => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
-                'tgl2'    => $r->tanggal_jatuh_tempo ? Carbon::parse($r->tanggal_jatuh_tempo)->translatedFormat('d M Y') : '-',
-                'status'  => $r->status,
-                'kelas'   => $this->statusBadgeClass($r->status),
+                'buku' => $r->buku ?: '-',
+                'tgl1' => $r->tanggal_pinjam ? Carbon::parse($r->tanggal_pinjam)->translatedFormat('d M Y') : '-',
+                'tgl2' => $r->tanggal_jatuh_tempo ? Carbon::parse($r->tanggal_jatuh_tempo)->translatedFormat('d M Y') : '-',
+                'status' => $r->status,
+                'kelas' => $this->statusBadgeClass($r->status),
             ]);
         }
 
         return view('admin.laporan.index', compact(
-            'tab', 'mulai', 'selesai', 'periodeLabel', 'stat', 'grafik',
-            'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows',
-            'ringkasTransaksi', 'rekapJudul', 'kolomJudul'
+            'tab', 'mode', 'bulan', 'tahun', 'mulai', 'selesai', 'periodeLabel',
+            'tahunTersedia', 'daftarBulan', 'stat', 'grafik', 'grafikLabel',
+            'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi',
+            'rekapJudul', 'kolomJudul'
         ));
+    }
+
+    /**
+     * Menentukan periode laporan Admin.
+     *
+     * Mode "semua" menjadi default agar seluruh riwayat transaksi langsung
+     * terlihat. Tautan lama yang hanya mengirim mulai/selesai tetap dibaca
+     * sebagai mode kustom supaya URL dan pengujian lama tidak rusak.
+     *
+     * @return array{
+     *     mode:string,
+     *     bulan:?int,
+     *     tahun:?int,
+     *     mulai:Carbon,
+     *     selesai:Carbon,
+     *     label:string,
+     *     tahunTersedia:array<int, int>,
+     *     daftarBulan:array<int, string>
+     * }
+     */
+    private function periodeLaporan(Request $request): array
+    {
+        $bulan = $this->angkaPeriode($request->input('bulan'), 1, 12);
+        $tahun = $this->angkaPeriode($request->input('tahun'), 1900, 2999);
+        $hariIni = Carbon::today();
+
+        $mode = (string) $request->input('mode', '');
+        if (! in_array($mode, ['semua', 'filter', 'kustom'], true)) {
+            $mode = ($request->filled('mulai') || $request->filled('selesai'))
+                ? 'kustom'
+                : 'semua';
+        }
+
+        // Tahun diambil dari tanggal pinjam dan tanggal kembali agar pilihan
+        // tetap lengkap walaupun pada suatu tahun hanya ada pengembalian.
+        $tahunTersedia = DB::table('peminjaman')
+            ->selectRaw('SUBSTR(tanggal_pinjam, 1, 4) as tahun')
+            ->union(DB::table('pengembalian')->selectRaw('SUBSTR(tanggal_kembali, 1, 4) as tahun'))
+            ->pluck('tahun')
+            ->filter()
+            ->map(fn ($nilai) => (int) $nilai)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+
+        $mulaiData = DB::table('peminjaman')->min('tanggal_pinjam');
+        $selesaiData = collect([
+            DB::table('peminjaman')->max('tanggal_pinjam'),
+            DB::table('pengembalian')->max('tanggal_kembali'),
+        ])->filter()->max();
+
+        // Mode filter tanpa bulan dan tahun berarti seluruh periode.
+        if ($mode === 'filter' && $bulan === null && $tahun === null) {
+            $mode = 'semua';
+        }
+
+        if ($mode === 'filter') {
+            if ($tahun !== null && $bulan !== null) {
+                $mulai = Carbon::create($tahun, $bulan, 1)->startOfDay();
+                $selesai = $mulai->copy()->endOfMonth();
+                $label = $this->namaBulan($bulan).' '.$tahun;
+            } elseif ($tahun !== null) {
+                $mulai = Carbon::create($tahun, 1, 1)->startOfDay();
+                $selesai = Carbon::create($tahun, 12, 31)->endOfDay();
+                $label = 'Tahun '.$tahun;
+            } else {
+                // Filter bulan saja berlaku untuk seluruh tahun. Rentang
+                // tanggal memakai tahun terbaru yang tersedia agar pemilih
+                // tanggal tetap menampilkan periode yang masuk akal.
+                $tahunAcuan = $tahunTersedia[0] ?? $hariIni->year;
+                $mulai = Carbon::create($tahunAcuan, (int) $bulan, 1)->startOfDay();
+                $selesai = $mulai->copy()->endOfMonth();
+                $label = $this->namaBulan((int) $bulan).' (seluruh tahun)';
+            }
+        } elseif ($mode === 'kustom') {
+            $mulai = $this->parseTanggal($request->input('mulai'))
+                ?? $hariIni->copy()->subDays(29);
+            $selesai = $this->parseTanggal($request->input('selesai'))
+                ?? $hariIni->copy();
+
+            $mulai = $mulai->startOfDay();
+            $selesai = $selesai->endOfDay();
+
+            if ($mulai->gt($selesai)) {
+                $mulai = $selesai->copy()->startOfDay();
+            }
+
+            $label = $mulai->locale('id')->translatedFormat('d M Y')
+                .' – '.$selesai->locale('id')->translatedFormat('d M Y');
+        } else {
+            $mode = 'semua';
+            $mulai = $mulaiData
+                ? Carbon::parse($mulaiData)->startOfDay()
+                : $hariIni->copy()->subDays(29)->startOfDay();
+            $selesai = $hariIni->copy()->endOfDay();
+
+            $label = 'Seluruh Periode';
+            if ($mulaiData !== null && $selesaiData !== null) {
+                $label .= ' ('
+                    .Carbon::parse($mulaiData)->locale('id')->translatedFormat('d M Y')
+                    .' – '
+                    .Carbon::parse($selesaiData)->locale('id')->translatedFormat('d M Y')
+                    .')';
+            }
+        }
+
+        return [
+            'mode' => $mode,
+            'bulan' => $bulan,
+            'tahun' => $tahun,
+            'mulai' => $mulai,
+            'selesai' => $selesai,
+            'label' => $label,
+            'tahunTersedia' => $tahunTersedia,
+            'daftarBulan' => self::BULAN,
+        ];
+    }
+
+    private function angkaPeriode(mixed $nilai, int $min, int $max): ?int
+    {
+        if ($nilai === null || $nilai === '' || ! is_numeric($nilai)) {
+            return null;
+        }
+
+        $angka = (int) $nilai;
+
+        return $angka >= $min && $angka <= $max ? $angka : null;
+    }
+
+    private function parseTanggal(mixed $nilai): ?Carbon
+    {
+        if (! is_string($nilai) || trim($nilai) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($nilai);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function namaBulan(int $bulan): string
+    {
+        return self::BULAN[$bulan] ?? '-';
     }
 
     /**

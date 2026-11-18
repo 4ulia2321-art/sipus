@@ -59,7 +59,7 @@
         <span>Laporan</span>
     </nav>
 
-    {{-- Form filter (rentang tanggal + opsi grafik + tab) --}}
+    {{-- Form filter (seluruh periode, bulan/tahun, atau rentang tanggal) --}}
     <form method="GET" action="{{ route($area.'.laporan') }}" id="filter-form">
         <input type="hidden" name="tab" value="{{ $tab }}">
         <input type="hidden" name="mulai" id="mulai" value="{{ $mulai->format('Y-m-d') }}">
@@ -78,6 +78,54 @@
                 <i class="bi bi-calendar3"></i>
                 <input type="text" id="rentang" placeholder="Pilih rentang tanggal" readonly>
                 <i class="bi bi-chevron-down"></i>
+            </div>
+        </div>
+
+        {{-- Pilihan periode: seluruh data, bulan/tahun, atau rentang sendiri --}}
+        <div class="card laporan-filter-card">
+            <div class="laporan-filter">
+                <div class="form-group">
+                    <label for="mode-pilih">Mode Periode</label>
+                    <select name="mode" id="mode-pilih">
+                        <option value="semua" @selected($mode === 'semua')>Seluruh Periode</option>
+                        <option value="filter" @selected($mode === 'filter')>Bulan &amp; Tahun</option>
+                        <option value="kustom" @selected($mode === 'kustom')>Rentang Tanggal</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="bulan">Bulan</label>
+                    <select name="bulan" id="bulan">
+                        <option value="">Semua Bulan</option>
+                        @foreach ($daftarBulan as $angka => $nama)
+                            <option value="{{ $angka }}" @selected($bulan === $angka)>{{ $nama }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="tahun">Tahun</label>
+                    <select name="tahun" id="tahun">
+                        <option value="">Semua Tahun</option>
+                        @foreach ($tahunTersedia as $pilihanTahun)
+                            <option value="{{ $pilihanTahun }}" @selected($tahun === $pilihanTahun)>{{ $pilihanTahun }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="laporan-filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel"></i> Terapkan
+                    </button>
+                    <a href="{{ route($area.'.laporan', ['tab' => $tab]) }}" class="btn btn-outline">
+                        <i class="bi bi-collection"></i> Seluruh Periode
+                    </a>
+                </div>
+
+                <div class="laporan-filter-info">
+                    <span>Periode aktif</span>
+                    <strong>{{ $periodeLabel }}</strong>
+                </div>
             </div>
         </div>
     </form>
@@ -257,8 +305,18 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/id.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
-    // Rentang tanggal
-    flatpickr('#rentang', {
+    // Filter periode: seluruh data, bulan/tahun, atau rentang tanggal.
+    const modeSelect = document.getElementById('mode-pilih');
+    const bulanSelect = document.getElementById('bulan');
+    const tahunSelect = document.getElementById('tahun');
+
+    function aturFilterPeriode() {
+        const modeFilter = modeSelect.value === 'filter';
+        bulanSelect.disabled = !modeFilter;
+        tahunSelect.disabled = !modeFilter;
+    }
+
+    const rentangPicker = flatpickr('#rentang', {
         mode: 'range',
         locale: 'id',
         altInput: true,
@@ -269,10 +327,27 @@
             if (dates.length === 2) {
                 document.getElementById('mulai').value = inst.formatDate(dates[0], 'Y-m-d');
                 document.getElementById('selesai').value = inst.formatDate(dates[1], 'Y-m-d');
+                modeSelect.value = 'kustom';
+                aturFilterPeriode();
                 document.getElementById('filter-form').submit();
             }
         }
     });
+
+    modeSelect.addEventListener('change', function () {
+        if (this.value === 'kustom') {
+            rentangPicker.open();
+        }
+
+        if (this.value === 'semua') {
+            bulanSelect.value = '';
+            tahunSelect.value = '';
+        }
+
+        aturFilterPeriode();
+    });
+
+    aturFilterPeriode();
 
     // Grafik batang
     new Chart(document.getElementById('chartBar'), {
