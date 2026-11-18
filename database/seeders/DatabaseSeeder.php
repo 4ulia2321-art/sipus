@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ContohDataSeeder::class,
             DataAnggotaMassalSeeder::class,
+            DataDummySeeder::class,
         ]);
     }
 }
