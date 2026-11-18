@@ -51,6 +51,7 @@ class PengajuanController extends Controller
                 'peminjaman.tanggal_pinjam',
                 'peminjaman.tanggal_jatuh_tempo',
                 'peminjaman.status',
+                'peminjaman.alasan_penolakan',
                 'siswa.nis',
                 'siswa.nama_siswa',
                 'siswa.kelas',
@@ -189,7 +190,10 @@ class PengajuanController extends Controller
 
             DB::table('peminjaman')
                 ->where('id_peminjaman', $id)
-                ->update(['status' => 'Dipinjam']);
+                ->update([
+                    'status' => 'Dipinjam',
+                    'alasan_penolakan' => null,
+                ]);
 
             return 'ok';
         });
@@ -205,19 +209,49 @@ class PengajuanController extends Controller
         return back()->with('error', 'Pengajuan tidak dapat disetujui karena statusnya sudah diproses.');
     }
 
-    public function reject($id)
+    public function reject(Request $request, $id)
     {
         $this->ensurePustakawan();
 
-        $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $id)->first();
+        $data = $request->validate([
+            'alasan_penolakan' => ['required', 'string', 'max:500'],
+        ]);
 
-        if (! $peminjaman || $peminjaman->status !== 'Menunggu') {
-            return back()->with('error', 'Pengajuan tidak dapat ditolak karena statusnya sudah diproses.');
+        $alasan = trim($data['alasan_penolakan']);
+
+        $hasil = DB::transaction(function () use ($id, $alasan) {
+            $peminjaman = DB::table('peminjaman')
+                ->where('id_peminjaman', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $peminjaman) {
+                return 'tidak_ditemukan';
+            }
+
+            if ($peminjaman->status !== 'Menunggu') {
+                return 'sudah_diproses';
+            }
+
+            DB::table('peminjaman')
+                ->where('id_peminjaman', $id)
+                ->update([
+                    'status' => 'Ditolak',
+                    'alasan_penolakan' => $alasan,
+                ]);
+
+            return 'ok';
+        });
+
+        if ($hasil === 'ok') {
+            return back()->with('success', 'Pengajuan berhasil ditolak dengan alasan yang telah dicatat.');
         }
 
-        DB::table('peminjaman')->where('id_peminjaman', $id)->update(['status' => 'Ditolak']);
+        if ($hasil === 'tidak_ditemukan') {
+            return back()->with('error', 'Pengajuan tidak ditemukan.');
+        }
 
-        return back()->with('success', 'Pengajuan ditolak.');
+        return back()->with('error', 'Pengajuan tidak dapat ditolak karena statusnya sudah diproses.');
     }
 
     private function ensurePustakawan(): void

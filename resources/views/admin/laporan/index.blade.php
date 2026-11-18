@@ -6,6 +6,49 @@
 @push('styles')
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="{{ asset('css/laporan.css') }}">
+    <style>
+        /* Tanda tangan hanya tampil saat laporan dicetak. */
+        .ttd-cetak {
+            display: none;
+        }
+
+        @media print {
+            .ttd-cetak {
+                display: block;
+                margin-top: 28px;
+                page-break-inside: avoid;
+            }
+
+            .ttd-cetak table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .ttd-cetak td {
+                vertical-align: top;
+                font-size: 12px;
+            }
+
+            .ttd-cetak .kanan {
+                width: 42%;
+                text-align: center;
+            }
+
+            .ttd-cetak .ruang {
+                height: 62px;
+            }
+
+            .ttd-cetak .nama {
+                font-weight: 700;
+                text-decoration: underline;
+            }
+
+            .ttd-cetak .keterangan {
+                color: #475569;
+                font-size: 10.5px;
+            }
+        }
+    </style>
 @endpush
 
 @section('content')
@@ -189,6 +232,23 @@
             </span>
             <span class="pg-desktop">{{ $rows->onEachSide(1)->links('partials.pagination') }}</span>
         </div>
+    </div>
+
+    @include('partials.rekap-judul')
+
+    <div class="ttd-cetak">
+        <table>
+            <tr>
+                <td></td>
+                <td class="kanan">
+                    <div>Pasirjambu, {{ now()->locale('id')->translatedFormat('d F Y') }}</div>
+                    <div>Petugas Perpustakaan</div>
+                    <div class="ruang"></div>
+                    <div class="nama">{{ auth()->user()->name ?: auth()->user()->username }}</div>
+                    <div class="keterangan">NIP. ....................................</div>
+                </td>
+            </tr>
+        </table>
     </div>
 @endsection
 

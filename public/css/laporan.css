@@ -576,6 +576,35 @@
     white-space: nowrap;
 }
 
+/* Rekap per judul buku dengan kolom tahun/bulan otomatis */
+.rekap-judul-card {
+    margin-top: 18px;
+}
+
+.rekap-judul-table th,
+.rekap-judul-table td {
+    white-space: nowrap;
+}
+
+.rekap-judul-table th.rekap-tahun {
+    text-align: center;
+    border-left: 2px solid var(--line, #e2e8f0);
+}
+
+.report-table.rekap-judul-table th.rekap-num,
+.report-table.rekap-judul-table td.rekap-num {
+    text-align: center;
+}
+
+.rekap-judul-table td:nth-child(2) {
+    min-width: 220px;
+    white-space: normal;
+}
+
+.rekap-judul-foot {
+    margin-bottom: 0;
+}
+
 .rekap-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

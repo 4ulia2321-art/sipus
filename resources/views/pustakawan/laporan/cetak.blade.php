@@ -253,6 +253,42 @@
             text-align: right;
         }
 
+        /* Tanda tangan petugas pada laporan cetak */
+        .ttd {
+            width: 100%;
+            margin-top: 26px;
+            border-collapse: collapse;
+            page-break-inside: avoid;
+        }
+
+        .ttd td {
+            vertical-align: top;
+            font-size: 12px;
+        }
+
+        .ttd .kanan {
+            width: 42%;
+            text-align: center;
+        }
+
+        .ttd .tanggal {
+            margin-bottom: 2px;
+        }
+
+        .ttd .ruang {
+            height: 62px;
+        }
+
+        .ttd .nama {
+            font-weight: 700;
+            text-decoration: underline;
+        }
+
+        .ttd .keterangan {
+            font-size: 10.5px;
+            color: #475569;
+        }
+
         /* Rekap denda sebelum tabel laporan */
         .rekap-cetak {
             display: grid;
@@ -462,6 +498,19 @@
                     </tr>
                 @endforelse
             </tbody>
+        </table>
+
+        <table class="ttd">
+            <tr>
+                <td></td>
+                <td class="kanan">
+                    <div class="tanggal">Pasirjambu, {{ now()->translatedFormat('d F Y') }}</div>
+                    <div>Petugas Perpustakaan</div>
+                    <div class="ruang"></div>
+                    <div class="nama">{{ $dicetakOleh }}</div>
+                    <div class="keterangan">NIP. ....................................</div>
+                </td>
+            </tr>
         </table>
 
         <footer class="footer-cetak">

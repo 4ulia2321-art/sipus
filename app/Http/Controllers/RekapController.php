@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\RekapJudul;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -120,6 +121,15 @@ class RekapController extends Controller
         $totalBuku = (int) ($ringkasDetail->total_buku ?? 0);
         $totalKategori = (int) ($ringkasDetail->total_kategori ?? 0);
 
+        // Rekap per judul memakai baris detail yang sama dengan filter aktif.
+        // Pengelompokan tahun/bulan dilakukan di PHP agar kompatibel dengan
+        // MySQL maupun SQLite yang dipakai pengujian.
+        $barisJudul = (clone $detail)
+            ->select('p.id_peminjaman', 'b.judul', 'p.tanggal_pinjam', 'dp.jumlah')
+            ->get();
+
+        [$rekapJudul, $kolomJudul] = RekapJudul::susun($barisJudul);
+
         // Satu baris per transaksi berisi total salinan bukunya. Subquery ini
         // yang dipakai saat per kelas/status, sehingga COUNT transaksi tidak
         // berlipat ketika satu peminjaman punya beberapa detail buku.
@@ -217,6 +227,8 @@ class RekapController extends Controller
             'perKelas',
             'perKategori',
             'perStatus',
+            'rekapJudul',
+            'kolomJudul',
             'periodeLabel',
             'adaFilter',
             'badgeStatus'

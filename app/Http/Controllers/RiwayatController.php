@@ -104,6 +104,7 @@ class RiwayatController extends Controller
                 'p.perpanjangan_status',
                 'pg.tanggal_kembali',
                 'p.status',
+                'p.alasan_penolakan',
                 'b.judul',
                 'b.pengarang',
                 'b.kategori',
@@ -157,6 +158,7 @@ class RiwayatController extends Controller
                 'perpanjangan_status'  => $r->perpanjangan_status,
                 'status'               => $statusKey,
                 'status_label'         => $statusLabel,
+                'alasan_penolakan'     => $r->alasan_penolakan,
                 'buku_id'              => $r->buku_id,
             ];
         });

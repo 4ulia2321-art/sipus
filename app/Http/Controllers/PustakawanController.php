@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Rules\UniqueNormalized;
 use App\Support\Pengaturan;
+use App\Support\RekapJudul;
 use App\Support\StokBuku;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -1752,6 +1753,20 @@ class PustakawanController extends Controller
         // Rekap denda mengikuti tab dan periode laporan yang sedang dipilih.
         $rekapDenda = $this->rekapDenda($tab, $mulai, $selesai);
 
+        // Rekap per judul buku mengikuti periode laporan. Kolom tahun dan
+        // bulan dibentuk otomatis dari tanggal peminjaman yang tersedia.
+        $barisJudul = DB::table('detail_peminjaman as dp')
+            ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
+            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+            ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
+            ->select('p.id_peminjaman', 'b.judul', 'p.tanggal_pinjam', 'dp.jumlah')
+            ->get();
+
+        [$rekapJudul, $kolomJudul] = RekapJudul::susun($barisJudul);
+
+        $periodeLabel = $mulai->translatedFormat('d M Y')
+            .' – '.$selesai->translatedFormat('d M Y');
+
         // Statistik
         $stok = StokBuku::ringkasan();
 
@@ -1940,7 +1955,9 @@ class PustakawanController extends Controller
         }
 
         return view('pustakawan.laporan.index', compact(
-            'tab', 'mulai', 'selesai', 'periode', 'stat', 'grafik', 'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi', 'rekapDenda'
+            'tab', 'mulai', 'selesai', 'periode', 'periodeLabel', 'stat', 'grafik',
+            'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi',
+            'rekapDenda', 'rekapJudul', 'kolomJudul'
         ));
     }
 

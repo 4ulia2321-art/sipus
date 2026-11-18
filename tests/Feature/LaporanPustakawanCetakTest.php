@@ -352,6 +352,48 @@ class LaporanPustakawanCetakTest extends TestCase
             ->assertDontSee('Rp 3.000');
     }
 
+    public function test_laporan_menampilkan_rekap_per_judul_dengan_kolom_bulan_otomatis(): void
+    {
+        [$pustakawan] = $this->siapkanData();
+
+        $response = $this->actingAs($pustakawan)
+            ->get('/pustakawan/laporan?tab=peminjaman&periode=tahunan');
+
+        $response->assertOk()
+            ->assertSee('Rekap per Judul Buku')
+            ->assertSee('Buku Laporan Hari Ini')
+            ->assertSee('Buku Laporan Bulan Ini')
+            ->assertSee('Buku Laporan Bulan Lalu')
+            ->assertDontSee('Buku Laporan Tahun Lalu')
+            ->assertSee('>Nov</th>', false)
+            ->assertSee('>Okt</th>', false)
+            ->assertDontSee('>Des</th>', false);
+
+        $rekap = $response->viewData('rekapJudul')->keyBy('judul');
+        $kolom = $response->viewData('kolomJudul');
+
+        $this->assertSame(['2026'], array_column($kolom, 'tahun'));
+        $this->assertSame(['Nov', 'Okt'], array_column($kolom[0]['bulan'], 'label'));
+
+        $this->assertSame(1, $rekap['Buku Laporan Hari Ini']['total_buku']);
+        $this->assertSame(1, $rekap['Buku Laporan Bulan Ini']['total_buku']);
+        $this->assertSame(1, $rekap['Buku Laporan Bulan Lalu']['total_buku']);
+        $this->assertSame(1, $rekap['Buku Laporan Bulan Lalu']['periode']['2026-10']);
+    }
+
+    public function test_halaman_cetak_menampilkan_tanda_tangan_petugas(): void
+    {
+        [$pustakawan] = $this->siapkanData();
+
+        $this->actingAs($pustakawan)
+            ->get('/pustakawan/laporan/cetak?tab=peminjaman&periode=bulanan')
+            ->assertOk()
+            ->assertSee('Petugas Perpustakaan')
+            ->assertSee('Pasirjambu, 11 November 2026')
+            ->assertSee('NIP.')
+            ->assertSee('Pustakawanlaporan');
+    }
+
     public function test_siswa_tidak_bisa_membuka_halaman_cetak_pustakawan(): void
     {
         $siswa = $this->buatUser('Siswa', 'siswacetak');

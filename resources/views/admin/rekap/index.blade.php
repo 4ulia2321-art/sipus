@@ -254,4 +254,6 @@
             </table>
         </div>
     </div>
+
+    @include('partials.rekap-judul')
 @endsection

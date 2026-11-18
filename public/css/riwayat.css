@@ -235,6 +235,18 @@
     border-top: 1px solid var(--line, #eef2f7);
 }
 
+/* Alasan penolakan pada riwayat siswa */
+.history-reason {
+    display: block;
+    margin-top: 6px;
+    color: #b91c1c;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.45;
+    text-align: left;
+    white-space: normal;
+}
+
 @media (max-width: 768px) {
     .history-table-wrap {
         display: none;

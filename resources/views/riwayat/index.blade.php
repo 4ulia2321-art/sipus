@@ -108,6 +108,12 @@
                         @elseif ($row->perpanjangan_status === 'Ditolak' && $row->status === 'dipinjam')
                             <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
                         @endif
+                        @if ($row->status === 'ditolak' && $row->alasan_penolakan)
+                            <span class="history-reason">
+                                <i class="bi bi-chat-left-text"></i>
+                                {{ $row->alasan_penolakan }}
+                            </span>
+                        @endif
                     </div>
                 </td>
                 <td>
@@ -161,6 +167,12 @@
                             <span class="status-badge status-dikembalikan">Diperpanjang</span>
                         @elseif ($row->perpanjangan_status === 'Ditolak' && $row->status === 'dipinjam')
                             <span class="status-badge status-ditolak">Perpanjangan Ditolak</span>
+                        @endif
+                        @if ($row->status === 'ditolak' && $row->alasan_penolakan)
+                            <span class="history-reason">
+                                <i class="bi bi-chat-left-text"></i>
+                                {{ $row->alasan_penolakan }}
+                            </span>
                         @endif
                     </div>
                     <a href="{{ route('riwayat.show', $row->id_peminjaman) }}" class="btn-detail-outline">

@@ -69,6 +69,10 @@
     @elseif ($peminjaman->status_key === 'ditolak')
         <div class="alert alert-error">
             Pengajuan peminjaman ini ditolak.
+            @if ($peminjaman->alasan_penolakan)
+                <br>
+                <strong>Alasan:</strong> {{ $peminjaman->alasan_penolakan }}
+            @endif
         </div>
     @endif
 
@@ -121,6 +125,12 @@
                 <div>
                     <dt><i class="bi bi-send-check"></i> Pengajuan Kembali</dt>
                     <dd>{{ $peminjaman->pengajuan_kembali_at->translatedFormat('d M Y H:i') }}</dd>
+                </div>
+            @endif
+            @if ($peminjaman->status_key === 'ditolak' && $peminjaman->alasan_penolakan)
+                <div>
+                    <dt><i class="bi bi-chat-left-text"></i> Alasan Penolakan</dt>
+                    <dd>{{ $peminjaman->alasan_penolakan }}</dd>
                 </div>
             @endif
             @if ($peminjaman->perpanjangan_diminta_at)

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Rules\UniqueNormalized;
 use App\Support\Pengaturan;
+use App\Support\RekapJudul;
 use App\Support\StokBuku;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1767,6 +1768,19 @@ class AdminController extends Controller
             'pengembalian' => DB::table('pengembalian')->whereBetween('tanggal_kembali', [$mulai, $selesai])->count(),
         ];
 
+        // Rekap per judul mengikuti periode laporan yang sedang dipilih.
+        $barisJudul = DB::table('detail_peminjaman as dp')
+            ->join('peminjaman as p', 'p.id_peminjaman', '=', 'dp.id_peminjaman')
+            ->join('buku as b', 'b.id_buku', '=', 'dp.id_buku')
+            ->whereBetween('p.tanggal_pinjam', [$mulai->toDateString(), $selesai->toDateString()])
+            ->select('p.id_peminjaman', 'b.judul', 'p.tanggal_pinjam', 'dp.jumlah')
+            ->get();
+
+        [$rekapJudul, $kolomJudul] = RekapJudul::susun($barisJudul);
+
+        $periodeLabel = $mulai->translatedFormat('d M Y')
+            .' – '.$selesai->translatedFormat('d M Y');
+
         // Grafik batang peminjaman (7 / 30 hari)
         $grafik = in_array((int) $request->input('grafik'), [7, 30], true) ? (int) $request->input('grafik') : 7;
 
@@ -1939,7 +1953,9 @@ class AdminController extends Controller
         }
 
         return view('admin.laporan.index', compact(
-            'tab', 'mulai', 'selesai', 'stat', 'grafik', 'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows', 'ringkasTransaksi'
+            'tab', 'mulai', 'selesai', 'periodeLabel', 'stat', 'grafik',
+            'grafikLabel', 'grafikData', 'kategori', 'kolom', 'rows',
+            'ringkasTransaksi', 'rekapJudul', 'kolomJudul'
         ));
     }
 

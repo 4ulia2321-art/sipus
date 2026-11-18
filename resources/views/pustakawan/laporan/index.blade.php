@@ -225,6 +225,8 @@
         </div>
     </div>
 
+    @include('partials.rekap-judul')
+
 @endsection
 
 @push('scripts')

@@ -311,12 +311,126 @@ class SipusRoleAndFlowTest extends TestCase
             'jumlah'        => 1,
         ]);
 
+        $alasan = 'Stok buku sedang habis.';
+
+        $this->actingAs($pustakawan)
+            ->patch("/pustakawan/pengajuan/{$idPeminjaman}/reject", [
+                'alasan_penolakan' => $alasan,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->first();
+
+        $this->assertSame('Ditolak', $peminjaman->status);
+        $this->assertSame($alasan, $peminjaman->alasan_penolakan);
+        $this->assertSame(2, (int) DB::table('buku')->where('id_buku', $idBuku)->value('stok'));
+    }
+
+    public function test_alasan_penolakan_wajib_diisi_dan_dibatasi(): void
+    {
+        $siswaUser = $this->buatUser('Siswa', 'siswa8');
+        $idSiswa = $this->buatSiswa($siswaUser, '1008');
+        $pustakawan = $this->buatUser('Pustakawan', 'pustakawan8');
+        $idBuku = $this->buatBuku(2);
+
+        $idPeminjaman = DB::table('peminjaman')->insertGetId([
+            'id_siswa'            => $idSiswa,
+            'tanggal_pinjam'      => Carbon::today()->toDateString(),
+            'tanggal_jatuh_tempo' => Carbon::today()->addDays(7)->toDateString(),
+            'status'              => 'Menunggu',
+        ]);
+        DB::table('detail_peminjaman')->insert([
+            'id_peminjaman' => $idPeminjaman,
+            'id_buku'       => $idBuku,
+            'jumlah'        => 1,
+        ]);
+
+        // Tanpa alasan: validasi gagal dan status tidak berubah.
         $this->actingAs($pustakawan)
             ->patch("/pustakawan/pengajuan/{$idPeminjaman}/reject")
-            ->assertRedirect();
+            ->assertSessionHasErrors('alasan_penolakan');
 
-        $this->assertSame('Ditolak', DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->value('status'));
-        $this->assertSame(2, (int) DB::table('buku')->where('id_buku', $idBuku)->value('stok'));
+        $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->first();
+        $this->assertSame('Menunggu', $peminjaman->status);
+        $this->assertNull($peminjaman->alasan_penolakan);
+
+        // Alasan lebih dari 500 karakter juga ditolak.
+        $this->actingAs($pustakawan)
+            ->patch("/pustakawan/pengajuan/{$idPeminjaman}/reject", [
+                'alasan_penolakan' => str_repeat('a', 501),
+            ])
+            ->assertSessionHasErrors('alasan_penolakan');
+
+        $this->assertSame('Menunggu', DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->value('status'));
+    }
+
+    public function test_alasan_penolakan_tampil_kepada_siswa(): void
+    {
+        $siswaUser = $this->buatUser('Siswa', 'siswa9');
+        $idSiswa = $this->buatSiswa($siswaUser, '1009');
+        $idBuku = $this->buatBuku(2, 'Buku Alasan Penolakan');
+        $alasan = 'Buku sedang diperbaiki di percetakan.';
+
+        $idPeminjaman = DB::table('peminjaman')->insertGetId([
+            'id_siswa'            => $idSiswa,
+            'tanggal_pinjam'      => Carbon::today()->toDateString(),
+            'tanggal_jatuh_tempo' => Carbon::today()->addDays(7)->toDateString(),
+            'status'              => 'Ditolak',
+            'alasan_penolakan'    => $alasan,
+        ]);
+        DB::table('detail_peminjaman')->insert([
+            'id_peminjaman' => $idPeminjaman,
+            'id_buku'       => $idBuku,
+            'jumlah'        => 1,
+        ]);
+
+        $this->actingAs($siswaUser)->get('/pengajuan')
+            ->assertOk()
+            ->assertSee($alasan);
+
+        $this->actingAs($siswaUser)->get('/riwayat')
+            ->assertOk()
+            ->assertSee($alasan);
+
+        $this->actingAs($siswaUser)->get("/riwayat/{$idPeminjaman}")
+            ->assertOk()
+            ->assertSee($alasan);
+    }
+
+    public function test_persetujuan_menghapus_alasan_penolakan_lama(): void
+    {
+        $siswaUser = $this->buatUser('Siswa', 'siswa10');
+        $idSiswa = $this->buatSiswa($siswaUser, '1010');
+        $pustakawan = $this->buatUser('Pustakawan', 'pustakawan10');
+        $idBuku = $this->buatBuku(2);
+
+        $idPeminjaman = DB::table('peminjaman')->insertGetId([
+            'id_siswa'            => $idSiswa,
+            'tanggal_pinjam'      => Carbon::today()->toDateString(),
+            'tanggal_jatuh_tempo' => Carbon::today()->addDays(7)->toDateString(),
+            'status'              => 'Menunggu',
+            'alasan_penolakan'    => 'Sisa alasan dari proses sebelumnya.',
+        ]);
+        DB::table('detail_peminjaman')->insert([
+            'id_peminjaman' => $idPeminjaman,
+            'id_buku'       => $idBuku,
+            'jumlah'        => 1,
+        ]);
+
+        $this->actingAs($pustakawan)
+            ->patch("/pustakawan/pengajuan/{$idPeminjaman}/approve")
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $peminjaman = DB::table('peminjaman')->where('id_peminjaman', $idPeminjaman)->first();
+        $this->assertSame('Dipinjam', $peminjaman->status);
+        $this->assertNull($peminjaman->alasan_penolakan);
+
+        $this->actingAs($siswaUser)->get('/pengajuan')
+            ->assertOk()
+            ->assertSee('Dipinjam')
+            ->assertDontSee('Sisa alasan dari proses sebelumnya.');
     }
 
     public function test_admin_mengelola_kategori_dan_sinkron_ke_buku(): void

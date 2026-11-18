@@ -252,6 +252,91 @@ class RekapDataTest extends TestCase
         $this->assertSame(4, $tidakValid->viewData('ringkasan')['total_transaksi']);
     }
 
+    public function test_rekap_per_judul_mengelompokkan_tahun_dan_bulan_secara_otomatis(): void
+    {
+        $kelas = $this->buatKelas('IX A');
+        $siswa = $this->buatSiswa($kelas, 'Nina', '9001');
+        $kategori = $this->buatKategori('Pelajaran');
+        $buku = $this->buatBuku($kategori, 'Buku Rekap Tahunan');
+
+        // Tiga transaksi pada bulan dan tahun berbeda.
+        $desember2025 = $this->buatPeminjaman($siswa, '2025-12-10', 'Dikembalikan');
+        $this->buatDetail($desember2025, $buku, 2);
+
+        $januari2026 = $this->buatPeminjaman($siswa, '2026-01-15', 'Dipinjam');
+        $this->buatDetail($januari2026, $buku, 3);
+
+        $maret2026 = $this->buatPeminjaman($siswa, '2026-03-05', 'Dipinjam');
+        $this->buatDetail($maret2026, $buku, 1);
+
+        $response = $this->actingAs($this->admin())->get('/admin/rekap');
+
+        $response->assertOk()
+            ->assertSee('Rekap per Judul Buku')
+            ->assertSee('Buku Rekap Tahunan')
+            ->assertSee('2026')
+            ->assertSee('2025')
+            ->assertSee('Jan')
+            ->assertSee('Mar')
+            ->assertSee('Des');
+
+        $rekap = $response->viewData('rekapJudul')->firstWhere('judul', 'Buku Rekap Tahunan');
+
+        $this->assertNotNull($rekap);
+        $this->assertSame(6, $rekap['total_buku']);
+        $this->assertSame(3, $rekap['total_transaksi']);
+        $this->assertSame(2, $rekap['periode']['2025-12']);
+        $this->assertSame(3, $rekap['periode']['2026-01']);
+        $this->assertSame(1, $rekap['periode']['2026-03']);
+
+        // Tahun terbaru lebih dulu, lalu bulan terbaru di dalam tahun itu.
+        $kolom = $response->viewData('kolomJudul');
+
+        $this->assertSame(['2026', '2025'], array_column($kolom, 'tahun'));
+        $this->assertSame(['Mar', 'Jan'], array_column($kolom[0]['bulan'], 'label'));
+        $this->assertSame(['Des'], array_column($kolom[1]['bulan'], 'label'));
+    }
+
+    public function test_rekap_per_judul_mengikuti_filter_admin(): void
+    {
+        $data = $this->siapkanData();
+        $admin = $this->admin();
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/rekap?status=Dipinjam&mulai=2026-10-01&selesai=2026-10-31');
+
+        $response->assertOk();
+
+        $rekap = $response->viewData('rekapJudul')->keyBy('judul');
+
+        $this->assertTrue($rekap->has('Matematika VII'));
+        $this->assertTrue($rekap->has('IPA VII'));
+        $this->assertTrue($rekap->has('Kisah Nusantara'));
+        $this->assertSame(1, $rekap['Matematika VII']['total_transaksi']);
+        $this->assertSame(2, $rekap['Matematika VII']['total_buku']);
+        $this->assertSame(1, $rekap['IPA VII']['total_transaksi']);
+        $this->assertSame(1, $rekap['Kisah Nusantara']['total_transaksi']);
+    }
+
+    public function test_laporan_admin_menampilkan_rekap_judul_dan_tanda_tangan_cetak(): void
+    {
+        $this->siapkanData();
+
+        $response = $this->actingAs($this->admin())
+            ->get('/admin/laporan?mulai=2026-10-01&selesai=2026-10-31');
+
+        $response->assertOk()
+            ->assertSee('Rekap per Judul Buku')
+            ->assertSee('Matematika VII')
+            ->assertSee('Petugas Perpustakaan')
+            ->assertSee('ttd-cetak', false);
+
+        $rekap = $response->viewData('rekapJudul')->keyBy('judul');
+
+        $this->assertSame(3, $rekap['Matematika VII']['total_buku']);
+        $this->assertSame(3, $rekap['Matematika VII']['periode']['2026-10']);
+    }
+
     public function test_rekap_hanya_bisa_dibuka_admin(): void
     {
         $pustakawan = User::factory()->create(['role' => 'Pustakawan']);
