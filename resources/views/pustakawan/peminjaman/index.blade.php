@@ -175,6 +175,16 @@
                                 <div class="row-actions">
                                     <a href="{{ route('pustakawan.peminjaman.show', $row->id) }}" class="icon-btn" title="Detail"><i class="bi bi-eye"></i></a>
                                     <a href="{{ route('pustakawan.peminjaman.edit', ($khususTerlambat ?? false) ? ['id' => $row->id, 'asal' => 'keterlambatan'] : $row->id) }}" class="icon-btn" title="Edit"><i class="bi bi-pencil"></i></a>
+                                    @if (($tab ?? 'aktif') === 'aktif' && ! $row->tanggal_kembali)
+                                        <form action="{{ route('pustakawan.peminjaman.destroy', $row->id) }}" method="POST"
+                                              onsubmit="return confirm(@js('Hapus transaksi peminjaman ' . $row->judul . ' oleh ' . $row->nama . '? Stok buku akan dikembalikan.'))">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="icon-btn icon-btn-danger" title="Hapus transaksi salah input">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    @endif
                                     @if (($tab ?? 'aktif') === 'aktif')
                                         @if ($row->perpanjangan_status === 'Menunggu')
                                             <form action="{{ route('pustakawan.peminjaman.perpanjangan.setujui', $row->id) }}" method="POST"
@@ -267,6 +277,16 @@
                         <div class="row-actions">
                             <a href="{{ route('pustakawan.peminjaman.show', $row->id) }}" class="icon-btn sm" title="Detail"><i class="bi bi-eye"></i></a>
                             <a href="{{ route('pustakawan.peminjaman.edit', ($khususTerlambat ?? false) ? ['id' => $row->id, 'asal' => 'keterlambatan'] : $row->id) }}" class="icon-btn sm" title="Edit"><i class="bi bi-pencil"></i></a>
+                            @if (($tab ?? 'aktif') === 'aktif' && ! $row->tanggal_kembali)
+                                <form action="{{ route('pustakawan.peminjaman.destroy', $row->id) }}" method="POST"
+                                      onsubmit="return confirm(@js('Hapus transaksi peminjaman ' . $row->judul . ' oleh ' . $row->nama . '? Stok buku akan dikembalikan.'))">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="icon-btn sm icon-btn-danger" title="Hapus transaksi salah input">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            @endif
                             @if (($tab ?? 'aktif') === 'aktif')
                                 @if ($row->perpanjangan_status === 'Menunggu')
                                     <form action="{{ route('pustakawan.peminjaman.perpanjangan.setujui', $row->id) }}" method="POST"

@@ -111,6 +111,16 @@
             <a href="{{ route('pustakawan.peminjaman.edit', $peminjaman->id_peminjaman) }}" class="btn-outline">
                 <i class="bi bi-pencil"></i> Edit
             </a>
+            @if (! $peminjaman->tanggal_kembali)
+                <form action="{{ route('pustakawan.peminjaman.destroy', $peminjaman->id_peminjaman) }}" method="POST"
+                      onsubmit="return confirm(@js('Hapus transaksi peminjaman ' . $peminjaman->judul . ' oleh ' . $peminjaman->nama_siswa . '? Stok buku akan dikembalikan.'))">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn-outline btn-outline-danger">
+                        <i class="bi bi-trash"></i> Hapus
+                    </button>
+                </form>
+            @endif
         </div>
     </section>
 @endsection

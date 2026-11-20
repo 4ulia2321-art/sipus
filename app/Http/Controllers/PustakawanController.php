@@ -381,6 +381,57 @@ class PustakawanController extends Controller
         return redirect($redirect)->with('success', 'Data peminjaman berhasil diperbarui.');
     }
 
+    /**
+     * Hapus transaksi peminjaman yang salah input.
+     *
+     * Hanya transaksi tanpa catatan pengembalian yang boleh dihapus agar
+     * riwayat denda tetap utuh. Jika statusnya Dipinjam, stok buku
+     * dikembalikan sesuai jumlah salinan pada detail transaksi.
+     */
+    public function destroy($id)
+    {
+        $this->ensureAdmin();
+
+        $hasil = DB::transaction(function () use ($id) {
+            $peminjaman = DB::table('peminjaman')
+                ->where('id_peminjaman', $id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $peminjaman) {
+                return 'tidak_ditemukan';
+            }
+
+            if (DB::table('pengembalian')->where('id_peminjaman', $id)->exists()) {
+                return 'sudah_dikembalikan';
+            }
+
+            $details = DB::table('detail_peminjaman')->where('id_peminjaman', $id)->get();
+
+            if ($peminjaman->status === 'Dipinjam') {
+                foreach ($details as $detail) {
+                    DB::table('buku')
+                        ->where('id_buku', $detail->id_buku)
+                        ->increment('stok', (int) $detail->jumlah);
+                }
+            }
+
+            DB::table('detail_peminjaman')->where('id_peminjaman', $id)->delete();
+            DB::table('peminjaman')->where('id_peminjaman', $id)->delete();
+
+            return 'ok';
+        });
+
+        return match ($hasil) {
+            'ok' => redirect(route('pustakawan.peminjaman'))
+                ->with('success', 'Transaksi peminjaman berhasil dihapus dan stok buku sudah disesuaikan.'),
+            'sudah_dikembalikan' => redirect(route('pustakawan.peminjaman'))
+                ->with('error', 'Transaksi yang sudah memiliki catatan pengembalian tidak dapat dihapus.'),
+            default => redirect(route('pustakawan.peminjaman'))
+                ->with('error', 'Transaksi peminjaman tidak ditemukan.'),
+        };
+    }
+
     public function perpanjang($id)
     {
         $this->ensureAdmin();
@@ -2212,8 +2263,28 @@ class PustakawanController extends Controller
     {
         Carbon::setLocale('id');
 
-        $periode = $request->input('periode', 'kustom');
+        $periode = $request->input('periode', 'semua');
         $hariIni = Carbon::today();
+
+        // Seluruh riwayat: rentang diambil dari data paling awal sampai paling
+        // akhir yang tersimpan, sehingga semua bulan dan tahun ikut tampil.
+        if ($periode === 'semua') {
+            $tanggal = array_filter([
+                DB::table('peminjaman')->min('tanggal_pinjam'),
+                DB::table('peminjaman')->max('tanggal_pinjam'),
+                DB::table('pengembalian')->min('tanggal_kembali'),
+                DB::table('pengembalian')->max('tanggal_kembali'),
+            ]);
+
+            $mulai = $tanggal
+                ? Carbon::parse(min($tanggal))->startOfDay()
+                : $hariIni->copy()->startOfYear();
+            $selesai = $tanggal
+                ? Carbon::parse(max($tanggal))->endOfDay()
+                : $hariIni->copy()->endOfDay();
+
+            return [$mulai, $selesai, 'semua'];
+        }
 
         if ($periode === 'harian') {
             return [$hariIni->copy()->startOfDay(), $hariIni->copy()->endOfDay(), 'harian'];

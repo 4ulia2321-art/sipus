@@ -182,6 +182,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/peminjaman/{id}', [PustakawanController::class, 'show'])->name('peminjaman.show');
         Route::get('/peminjaman/{id}/edit', [PustakawanController::class, 'edit'])->name('peminjaman.edit');
         Route::put('/peminjaman/{id}', [PustakawanController::class, 'update'])->name('peminjaman.update');
+        Route::delete('/peminjaman/{id}', [PustakawanController::class, 'destroy'])->name('peminjaman.destroy');
         Route::post('/peminjaman/{id}/perpanjang', [PustakawanController::class, 'perpanjang'])->name('peminjaman.perpanjang');
         Route::post('/peminjaman/{id}/perpanjangan/setujui', [PustakawanController::class, 'setujuiPerpanjangan'])->name('peminjaman.perpanjangan.setujui');
         Route::post('/peminjaman/{id}/perpanjangan/tolak', [PustakawanController::class, 'tolakPerpanjangan'])->name('peminjaman.perpanjangan.tolak');

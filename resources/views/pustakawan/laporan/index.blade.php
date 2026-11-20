@@ -39,11 +39,11 @@
             </div>
         </div>
 
-        {{-- Pilihan periode cepat: harian, bulanan, tahunan, atau rentang sendiri --}}
+        {{-- Pilihan periode cepat: semua, harian, bulanan, tahunan, atau rentang sendiri --}}
         <div class="periode-bar">
             <span class="periode-label"><i class="bi bi-calendar-range"></i> Periode laporan:</span>
             <div class="periode-tabs">
-                @foreach (['harian' => 'Harian', 'bulanan' => 'Bulanan', 'tahunan' => 'Tahunan'] as $key => $label)
+                @foreach (['semua' => 'Semua', 'harian' => 'Harian', 'bulanan' => 'Bulanan', 'tahunan' => 'Tahunan'] as $key => $label)
                     <a href="{{ route('pustakawan.laporan', array_merge(request()->query(), ['periode' => $key, 'page' => null])) }}"
                        class="periode-tab {{ $periode === $key ? 'active' : '' }}">{{ $label }}</a>
                 @endforeach

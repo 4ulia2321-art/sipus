@@ -1269,6 +1269,17 @@ a {
     border-color: var(--brand);
 }
 
+.btn-outline-danger {
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+
+.btn-outline-danger:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+}
+
 /* ===== Kartu statistik dapat diklik ===== */
 a.stat-card {
     color: inherit;
