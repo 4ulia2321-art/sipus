@@ -28,6 +28,16 @@
         </a>
     </div>
 
+    {{-- Denda dan keterlambatan menjadi satu menu dengan dua tab. --}}
+    <div class="loan-tabs" style="margin-bottom: 14px;">
+        <a href="{{ route('pustakawan.denda') }}" class="loan-tab active">
+            <i class="bi bi-cash-coin"></i> Denda
+        </a>
+        <a href="{{ route('pustakawan.keterlambatan') }}" class="loan-tab">
+            <i class="bi bi-exclamation-triangle"></i> Keterlambatan
+        </a>
+    </div>
+
     @if (session('success'))
         <div class="alert-success"><i class="bi bi-check-circle-fill"></i> {{ session('success') }}</div>
     @endif

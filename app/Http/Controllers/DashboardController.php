@@ -156,11 +156,10 @@ class DashboardController extends Controller
         ];
 
         $menuCepat = [
-            ['route' => 'pustakawan.pengajuan',     'color' => 'blue',   'icon' => 'bi-file-earmark-check', 'label' => 'Pengajuan'],
-            ['route' => 'pustakawan.persetujuan',   'color' => 'green',  'icon' => 'bi-check2-square',      'label' => 'Persetujuan'],
+            ['route' => 'pustakawan.pengajuan',     'color' => 'blue',   'icon' => 'bi-file-earmark-check', 'label' => 'Pengajuan Peminjaman'],
             ['route' => 'pustakawan.peminjaman',    'color' => 'orange', 'icon' => 'bi-file-earmark-plus',  'label' => 'Transaksi Peminjaman'],
             ['route' => 'pustakawan.pengembalian',  'color' => 'purple', 'icon' => 'bi-clock-history',      'label' => 'Pengembalian'],
-            ['route' => 'pustakawan.keterlambatan', 'color' => 'orange', 'icon' => 'bi-exclamation-triangle', 'label' => 'Keterlambatan'],
+            ['route' => 'pustakawan.denda',         'color' => 'orange', 'icon' => 'bi-cash-coin',          'label' => 'Denda'],
             ['route' => 'pustakawan.laporan',       'color' => 'blue',   'icon' => 'bi-clipboard-data',     'label' => 'Laporan Peminjaman'],
         ];
 

@@ -15,6 +15,9 @@
         <span>Rekap Data</span>
     </nav>
 
+    {{-- Navigasi gabungan Rekap Data, Statistik, dan Laporan Keseluruhan --}}
+    @include('partials.rekap-tabs')
+
     {{-- Header halaman --}}
     <div class="page-header">
         <div class="page-title">

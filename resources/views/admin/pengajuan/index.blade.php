@@ -100,6 +100,20 @@
         <span>{{ $judulHalaman ?? 'Pengajuan Peminjaman' }}</span>
     </nav>
 
+    @if ($isAdmin)
+        {{-- Pengajuan dan persetujuan menjadi satu menu dengan dua tab. --}}
+        <div class="loan-tabs" style="margin-bottom: 14px;">
+            <a href="{{ route('pustakawan.pengajuan') }}"
+               class="loan-tab {{ ! ($hanyaMenunggu ?? false) ? 'active' : '' }}">
+                <i class="bi bi-file-earmark-text"></i> Pengajuan Peminjaman
+            </a>
+            <a href="{{ route('pustakawan.persetujuan') }}"
+               class="loan-tab {{ ($hanyaMenunggu ?? false) ? 'active' : '' }}">
+                <i class="bi bi-check2-square"></i> Persetujuan Peminjaman
+            </a>
+        </div>
+    @endif
+
     <div class="page-title">
         <i class="bi {{ ($hanyaMenunggu ?? false) ? 'bi-check2-square' : 'bi-file-earmark-text' }}"></i>
         <div>
@@ -177,7 +191,7 @@
                         <th>Buku</th>
                         <th>Jatuh Tempo</th>
                         <th>Status</th>
-                        @if ($isAdmin && ($hanyaMenunggu ?? false))
+                        @if ($isAdmin)
                             <th>Aksi</th>
                         @endif
                     </tr>
@@ -202,29 +216,33 @@
                                     </div>
                                 @endif
                             </td>
-                            @if ($isAdmin && ($hanyaMenunggu ?? false))
+                            @if ($isAdmin)
                                 <td class="table-actions">
-                                    <!-- Tombol Setujui -->
-                                    <form action="{{ route('pustakawan.pengajuan.approve', $row->id_peminjaman) }}" method="POST">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button class="btn-sm btn-ok"><i class="bi bi-check-lg"></i> Setujui</button>
-                                    </form>
+                                    @if ($row->status === 'Menunggu')
+                                        <!-- Tombol Setujui -->
+                                        <form action="{{ route('pustakawan.pengajuan.approve', $row->id_peminjaman) }}" method="POST">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button class="btn-sm btn-ok"><i class="bi bi-check-lg"></i> Setujui</button>
+                                        </form>
 
-                                    <!-- Tombol Tolak -->
-                                    <button type="button" class="btn-sm btn-danger"
-                                            data-tolak
-                                            data-id="{{ $row->id_peminjaman }}"
-                                            data-action="{{ route('pustakawan.pengajuan.reject', $row->id_peminjaman) }}"
-                                            data-info="{{ $row->nama_pemohon }} · {{ $row->judul }}">
-                                        <i class="bi bi-x-lg"></i> Tolak
-                                    </button>
+                                        <!-- Tombol Tolak -->
+                                        <button type="button" class="btn-sm btn-danger"
+                                                data-tolak
+                                                data-id="{{ $row->id_peminjaman }}"
+                                                data-action="{{ route('pustakawan.pengajuan.reject', $row->id_peminjaman) }}"
+                                                data-info="{{ $row->nama_pemohon }} · {{ $row->judul }}">
+                                            <i class="bi bi-x-lg"></i> Tolak
+                                        </button>
+                                    @else
+                                        <span style="color: var(--muted);">&mdash;</span>
+                                    @endif
                                 </td>
                             @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $isAdmin && ($hanyaMenunggu ?? false) ? 8 : 7 }}" class="empty">
+                            <td colspan="{{ $isAdmin ? 8 : 7 }}" class="empty">
                                 {{ ($hanyaMenunggu ?? false) ? 'Tidak ada pengajuan yang menunggu persetujuan.' : 'Belum ada pengajuan peminjaman.' }}
                             </td>
                         </tr>
@@ -234,7 +252,7 @@
         </div>
     </section>
 
-    @if ($isAdmin && ($hanyaMenunggu ?? false))
+    @if ($isAdmin)
         {{-- Modal penolakan: satu form yang dipakai ulang untuk semua baris. --}}
         <div class="tolak-backdrop" id="tolakBackdrop" hidden>
             <div class="tolak-modal" role="dialog" aria-modal="true" aria-labelledby="tolakTitle">

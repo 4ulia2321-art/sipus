@@ -91,12 +91,12 @@ class PustakawanCrudTest extends TestCase
         $this->actingAs($pustakawan)->get('/pustakawan/anggota/create')->assertOk();
         $this->actingAs($pustakawan)->get('/pustakawan/kelas/create')->assertOk();
 
-        // Menu baru tampil di sidebar Pustakawan.
+        // Menu sidebar Pustakawan sesuai pembagian tugas; Data Kelas tidak lagi ditampilkan.
         $this->actingAs($pustakawan)->get('/pustakawan')
             ->assertOk()
             ->assertSee('Data Buku')
             ->assertSee('Data Anggota')
-            ->assertSee('Data Kelas');
+            ->assertDontSee('Data Kelas');
 
         // Admin dan Siswa tidak boleh masuk area Pustakawan.
         $this->actingAs($admin)->get('/pustakawan/buku')->assertRedirect('/admin');

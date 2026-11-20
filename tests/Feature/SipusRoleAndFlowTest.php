@@ -161,26 +161,44 @@ class SipusRoleAndFlowTest extends TestCase
         $this->actingAs($pustakawan)->get('/pustakawan/statistik')->assertNotFound();
 
         // Sidebar Pustakawan memuat menu operasional sesuai pembagian tugas.
-        $this->actingAs($pustakawan)->get('/pustakawan')
-            ->assertOk()
-            ->assertSee('Pengajuan Peminjaman')
-            ->assertSee('Persetujuan Peminjaman')
-            ->assertSee('Transaksi Peminjaman')
-            ->assertSee('Keterlambatan')
-            ->assertSee('Denda')
-            ->assertSee('Laporan Peminjaman dan Pengembalian')
-            ->assertDontSee('Statistik')
-            ->assertDontSee('Laporan Keseluruhan');
+        $sidebarPustakawan = view('partials.sidebar-pustakawan')->render();
+        $this->assertStringContainsString('Data Buku', $sidebarPustakawan);
+        $this->assertStringContainsString('Data Anggota', $sidebarPustakawan);
+        $this->assertStringContainsString('Pengajuan Peminjaman', $sidebarPustakawan);
+        $this->assertStringContainsString('Transaksi Peminjaman', $sidebarPustakawan);
+        $this->assertStringContainsString('Pengembalian', $sidebarPustakawan);
+        $this->assertStringContainsString('Denda', $sidebarPustakawan);
+        $this->assertStringContainsString('Laporan Peminjaman dan Pengembalian', $sidebarPustakawan);
+        $this->assertStringNotContainsString('Data Kelas', $sidebarPustakawan);
+        $this->assertStringNotContainsString('Persetujuan Peminjaman', $sidebarPustakawan);
+        $this->assertStringNotContainsString('Keterlambatan', $sidebarPustakawan);
+        $this->assertStringNotContainsString('Statistik', $sidebarPustakawan);
+        $this->assertStringNotContainsString('Laporan Keseluruhan', $sidebarPustakawan);
 
         // Sidebar Admin memuat menu pengelolaan, bukan menu operasional Pustakawan.
-        $this->actingAs($admin)->get('/admin')
+        $sidebarAdmin = view('partials.sidebar-admin')->render();
+        $this->assertStringContainsString('Kelas', $sidebarAdmin);
+        $this->assertStringContainsString('Pengguna', $sidebarAdmin);
+        $this->assertStringContainsString('Ketentuan Denda', $sidebarAdmin);
+        $this->assertStringContainsString('Pengaturan Sistem', $sidebarAdmin);
+        $this->assertStringContainsString('Rekap Data', $sidebarAdmin);
+        $this->assertStringNotContainsString('Data Buku', $sidebarAdmin);
+        $this->assertStringNotContainsString('Pengajuan Peminjaman', $sidebarAdmin);
+        $this->assertStringNotContainsString('Transaksi Peminjaman', $sidebarAdmin);
+
+        // Menu gabungan tetap menautkan halaman turunannya.
+        $this->actingAs($admin)->get('/admin/rekap')
             ->assertOk()
-            ->assertSee('Data Buku')
-            ->assertSee('Pengguna')
-            ->assertSee('Pengaturan Sistem')
-            ->assertSee('Laporan Keseluruhan')
-            ->assertDontSee('Pengajuan Peminjaman')
-            ->assertDontSee('Transaksi Peminjaman');
+            ->assertSee('Statistik')
+            ->assertSee('Laporan Keseluruhan');
+
+        $this->actingAs($pustakawan)->get('/pustakawan/pengajuan')
+            ->assertOk()
+            ->assertSee('Persetujuan Peminjaman');
+
+        $this->actingAs($pustakawan)->get('/pustakawan/denda')
+            ->assertOk()
+            ->assertSee('Keterlambatan');
     }
 
     public function test_alur_pengajuan_persetujuan_dan_pengembalian(): void
@@ -199,6 +217,13 @@ class SipusRoleAndFlowTest extends TestCase
         $this->assertNotNull($peminjaman);
         $this->assertSame('Menunggu', $peminjaman->status);
         $this->assertSame(5, (int) DB::table('buku')->where('id_buku', $idBuku)->value('stok'));
+
+        // Menu Pengajuan Peminjaman sudah memuat aksi persetujuan.
+        $this->actingAs($pustakawan)
+            ->get('/pustakawan/pengajuan')
+            ->assertOk()
+            ->assertSee('Setujui')
+            ->assertSee(route('pustakawan.pengajuan.approve', $peminjaman->id_peminjaman), false);
 
         // Pustakawan menyetujui: status berubah dan stok berkurang.
         $this->actingAs($pustakawan)

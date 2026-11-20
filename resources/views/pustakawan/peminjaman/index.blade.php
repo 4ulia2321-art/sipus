@@ -18,6 +18,18 @@
         </div>
     </div>
 
+    @if ($khususTerlambat ?? false)
+        {{-- Denda dan keterlambatan menjadi satu menu dengan dua tab. --}}
+        <div class="loan-tabs" style="margin-bottom: 14px;">
+            <a href="{{ route('pustakawan.denda') }}" class="loan-tab">
+                <i class="bi bi-cash-coin"></i> Denda
+            </a>
+            <a href="{{ route('pustakawan.keterlambatan') }}" class="loan-tab active">
+                <i class="bi bi-exclamation-triangle"></i> Keterlambatan
+            </a>
+        </div>
+    @endif
+
     @if (session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif

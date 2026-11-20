@@ -2,18 +2,18 @@
     if ($isAdmin && (auth()->user()->role ?? '') === 'Pustakawan') {
         // Menu bawah khusus Pustakawan (operasional inti).
         $navItems = [
-            ['pustakawan.dashboard',    'Beranda',     'bi-house-door',         'pustakawan.dashboard'],
-            ['pustakawan.pengajuan',    'Pengajuan',   'bi-file-earmark-check', 'pustakawan.pengajuan*'],
-            ['pustakawan.persetujuan',  'Persetujuan', 'bi-check2-square',      'pustakawan.persetujuan*'],
-            ['pustakawan.peminjaman',   'Peminjaman',  'bi-file-earmark-plus',  'pustakawan.peminjaman*'],
-            ['pustakawan.pengembalian', 'Pengembalian','bi-clock-history',      'pustakawan.pengembalian*'],
+            ['pustakawan.dashboard',    'Beranda',      'bi-house-door',          'pustakawan.dashboard'],
+            ['pustakawan.pengajuan',    'Pengajuan',    'bi-file-earmark-check',  ['pustakawan.pengajuan*', 'pustakawan.persetujuan*']],
+            ['pustakawan.peminjaman',   'Peminjaman',   'bi-file-earmark-plus',   'pustakawan.peminjaman*'],
+            ['pustakawan.pengembalian', 'Pengembalian', 'bi-clock-history',       'pustakawan.pengembalian*'],
+            ['pustakawan.denda',        'Denda',        'bi-cash-coin',           ['pustakawan.denda*', 'pustakawan.keterlambatan*']],
         ];
     } elseif ($isAdmin) {
         $navItems = [
-            ['admin.dashboard', 'Beranda',   'bi-house-door',   'admin.dashboard'],
-            ['admin.buku',      'Buku',      'bi-book',         'admin.buku*'],
-            ['admin.statistik', 'Statistik', 'bi-graph-up-arrow','admin.statistik*'],
-            ['admin.laporan',   'Laporan',   'bi-bar-chart',    'admin.laporan*'],
+            ['admin.dashboard', 'Beranda',  'bi-house-door',    'admin.dashboard'],
+            ['admin.rekap',     'Rekap',    'bi-table',         ['admin.rekap*', 'admin.statistik*', 'admin.laporan*']],
+            ['admin.akun',      'Pengguna', 'bi-person-gear',   'admin.akun*'],
+            ['profil',          'Profil',   'bi-person',        'profil'],
         ];
     } else {
         // Item ke-4 berganti antara Riwayat dan Notifikasi, sesuai halaman yang sedang dibuka.
@@ -36,12 +36,14 @@
         @php
             $aktif = request()->routeIs($pola);
 
-            // Peminjaman yang difilter "terlambat" ditandai sebagai menu Keterlambatan.
-            if ($rute === 'pustakawan.keterlambatan') {
-                $aktif = $aktif || (request()->routeIs('pustakawan.peminjaman*') && request('status') === 'terlambat' && request('tab') !== 'riwayat');
-            }
+            // Transaksi peminjaman tidak aktif saat halaman berasal dari Keterlambatan.
             if ($rute === 'pustakawan.peminjaman') {
-                $aktif = $aktif && (request('status') !== 'terlambat' || request('tab') === 'riwayat') && request('asal') !== 'keterlambatan';
+                $aktif = $aktif && request('asal') !== 'keterlambatan';
+            }
+
+            // Menu Denda juga menaungi halaman Keterlambatan dan edit dari sana.
+            if ($rute === 'pustakawan.denda') {
+                $aktif = $aktif || (request()->routeIs('pustakawan.peminjaman*') && request('asal') === 'keterlambatan');
             }
         @endphp
         <a href="{{ route($rute) }}" class="{{ $aktif ? 'active' : '' }}">

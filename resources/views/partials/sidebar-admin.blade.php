@@ -13,9 +13,6 @@
                 <i class="bi {{ request()->routeIs('admin.dashboard') ? 'bi-house-door-fill' : 'bi-house-door' }}"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="{{ route('admin.buku') }}" class="{{ request()->routeIs('admin.buku*') ? 'active' : '' }}">
-                <i class="bi bi-book"></i> <span>Data Buku</span>
-            </a>
             <a href="{{ route('admin.kelas') }}" class="{{ request()->routeIs('admin.kelas*') ? 'active' : '' }}">
                 <i class="bi bi-diagram-3"></i> <span>Kelas</span>
             </a>
@@ -28,14 +25,9 @@
             <a href="{{ route('admin.pengaturan') }}" class="{{ request()->routeIs('admin.pengaturan*') ? 'active' : '' }}">
                 <i class="bi bi-gear"></i> <span>Pengaturan Sistem</span>
             </a>
-            <a href="{{ route('admin.statistik') }}" class="{{ request()->routeIs('admin.statistik*') ? 'active' : '' }}">
-                <i class="bi bi-graph-up-arrow"></i> <span>Statistik</span>
-            </a>
-            <a href="{{ route('admin.rekap') }}" class="{{ request()->routeIs('admin.rekap*') ? 'active' : '' }}">
+            {{-- Rekap Data menjadi satu pintu untuk rekap, statistik, dan laporan keseluruhan. --}}
+            <a href="{{ route('admin.rekap') }}" class="{{ request()->routeIs('admin.rekap*', 'admin.statistik*', 'admin.laporan*') ? 'active' : '' }}">
                 <i class="bi bi-table"></i> <span>Rekap Data</span>
-            </a>
-            <a href="{{ route('admin.laporan') }}" class="{{ request()->routeIs('admin.laporan*') ? 'active' : '' }}">
-                <i class="bi bi-bar-chart"></i> <span>Laporan Keseluruhan</span>
             </a>
 
             <a href="{{ route('profil') }}" class="{{ request()->routeIs('profil*') ? 'active' : '' }}">

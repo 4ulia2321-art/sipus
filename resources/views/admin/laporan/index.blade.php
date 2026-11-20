@@ -59,6 +59,9 @@
         <span>Laporan</span>
     </nav>
 
+    {{-- Navigasi gabungan Rekap Data, Statistik, dan Laporan Keseluruhan --}}
+    @include('partials.rekap-tabs')
+
     {{-- Form filter (seluruh periode, bulan/tahun, atau rentang tanggal) --}}
     <form method="GET" action="{{ route($area.'.laporan') }}" id="filter-form">
         <input type="hidden" name="tab" value="{{ $tab }}">
